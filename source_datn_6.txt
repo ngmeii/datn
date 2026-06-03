@@ -1,0 +1,1532 @@
+                   ĐẠI HỌC BÁCH KHOA HÀ NỘI
+
+                          KHOA TOÁN – TIN
+
+
+
+
+              ĐỒ ÁN TỐT NGHIỆP
+
+   Phân tích thiết kế hệ thống quản lý bán hàng ký gửi
+
+
+
+
+                        NGUYỄN NGỌC MAI
+
+                    Email: mai.nn227199@sis.hust.edu.vn
+
+                          Mã sinh viên: 20227199
+
+              Chuyên ngành Hệ thống Thông tin Quản lý
+
+
+
+
+Giảng viên hướng dẫn: TS. Vương Mai Phương
+                                                          Chữ ký của GVHD
+
+
+
+
+                              Hà Nội, 1/2026
+                               i
+
+
+
+          NHẬN XÉT CỦA GIẢNG VIÊN HƯỚNG DẪN
+
+
+1. Mục tiêu và nội dung của đồ án
+
+  (a) Mục tiêu:
+
+  (b) Nội dung:
+
+2. Kết quả đạt được
+
+  (a)
+
+  (b)
+
+   (c)
+
+3. Ý thức làm việc của sinh viên:
+
+  (a)
+
+  (b)
+
+   (c)
+
+                                    Hà Nội, ngày ... tháng ... năm 2026
+                                          Giảng viên hướng dẫn
+
+
+
+
+                                        TS. Vương Mai Phương
+                                         ii
+
+
+                              Lời cảm ơn
+  Trong suốt quá trình nghiên cứu và thực hiện đề tài, em xin gửi lời cảm ơn chân
+thành và sâu sắc tới TS. Vương Mai Phương cùng các thầy cô trong Khoa Toán – Tin,
+Đại học Bách khoa Hà Nội đã tận tình hướng dẫn, hỗ trợ và tạo điều kiện thuận lợi để
+em hoàn thành đồ án. Do hạn chế về thời gian và năng lực bản thân, nội dung đồ án
+khó tránh khỏi những thiếu sót. Em rất mong nhận được các ý kiến đóng góp quý báu
+từ thầy cô để em có thể tiếp tục hoàn thiện tốt hơn.
+  Em xin trân trọng cảm ơn!
+
+
+                Tóm tắt nội dung Đồ án
+
+
+                                                  Hà Nội, ngày 8 tháng 1 năm 2026
+                                                            Tác giả đồ án
+
+
+
+
+                                                        Nguyễn Ngọc Mai
+                                            iii
+
+
+
+
+Mục lục
+
+Danh sách chữ viết tắt                                                                   1
+Danh sách hình ảnh                                                                        3
+Danh sách bảng                                                                           4
+Chương 1 Giới thiệu đề tài                                                               5
+  1.1 Đặt vấn đề . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .     5
+   1.2 Lý do chọn đề tài . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .    5
+   1.3 Mục tiêu và phạm vi đề tài . . . . . . . . . . . . . . . . . . . . . . . . .       6
+  1.4 Bố cục đồ án . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .     6
+Chương 2 Khảo sát hiện trạng                                                             7
+   2.1 Giới thiệu về bán hàng ký gửi . . . . . . . . . . . . . . . . . . . . . . . . .    7
+       2.1.1 Giới thiệu chung về bán hàng ký gửi . . . . . . . . . . . . . . . . . .      7
+       2.1.2 Hiện trạng bán hàng ký gửi tại Việt Nam . . . . . . . . . . . . . .          8
+   2.2 Quy trình nghiệp vụ . . . . . . . . . . . . . . . . . . . . . . . . . . . . .      8
+   2.3 Khảo sát hệ thống hiện tại . . . . . . . . . . . . . . . . . . . . . . . . .       9
+       2.3.1 Khảo sát người dùng . . . . . . . . . . . . . . . . . . . . . . . . .        9
+       2.3.2 Khảo sát hệ thống tại Việt Nam . . . . . . . . . . . . . . . . . . . . 11
+       2.3.3 Khảo sát hệ thống tại nước ngoài . . . . . . . . . . . . . . . . . . 19
+   2.4 Nhu cầu của người dùng . . . . . . . . . . . . . . . . . . . . . . . . . . .      22
+       2.4.1 Nhu cầu của người bán . . . . . . . . . . . . . . . . . . . . . . . .       22
+       2.4.2 Nhu cầu của người mua . . . . . . . . . . . . . . . . . . . . . . . .       23
+       2.4.3 Nhu cầu của nhân viên . . . . . . . . . . . . . . . . . . . . . . . .       23
+   2.5 Đề xuất hệ thống mới . . . . . . . . . . . . . . . . . . . . . . . . . . . .      23
+Chương 3 Phân tích yêu cầu                                                               25
+   3.1 Các chính sách của cửa hàng . . . . . . . . . . . . . . . . . . . . . . . .       25
+       3.1.1 Chính sách thanh lý ký gửi . . . . . . . . . . . . . . . . . . . . . .      25
+       3.1.2 Chính sách trả hàng . . . . . . . . . . . . . . . . . . . . . . . . . .     26
+       3.1.3 Chính sách chuyển hàng miễn phí . . . . . . . . . . . . . . . . . .         26
+       3.1.4 Chính sách bảo mật thông tin . . . . . . . . . . . . . . . . . . . .        26
+       3.1.5 Chính sách đặt hàng và thanh toán . . . . . . . . . . . . . . . . .         26
+   3.2 Tổng quan chức năng . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 27
+       3.2.1 Sơ đồ use case cho "Khách hàng" . . . . . . . . . . . . . . . . . .         28
+                                           iv
+
+      3.2.2 Sơ đồ use case cho "Nhân viên" . . . . . . . . . . . . . . . . . . .       32
+      3.2.3 Sơ đồ use case cho "Admin" . . . . . . . . . . . . . . . . . . . . .       34
+  3.3 Đặc tả chức năng . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .   36
+      3.3.1 Đặc tả use case “Đăng nhập” . . . . . . . . . . . . . . . . . . . . .      36
+      3.3.2 Đặc tả use case “Ký gửi sản phẩm” . . . . . . . . . . . . . . . . . . 37
+      3.3.3 Đặc tả use case “Xử lý yêu cầu ký gửi” . . . . . . . . . . . . . . . 39
+      3.3.4 Đặc tả use case “Tiếp nhận và xử lý sản phẩm” . . . . . . . . . . . . 41
+      3.3.5 Đặc tả use case “Xác nhận ký gửi” . . . . . . . . . . . . . . . . . .      43
+      3.3.6 Đặc tả use case “Đăng bán sản phẩm ký gửi” . . . . . . . . . . . .         45
+      3.3.7 Đặc tả use case “Mua ngay” . . . . . . . . . . . . . . . . . . . . .       49
+      3.3.8 Đặc tả use case “Đặt hàng” . . . . . . . . . . . . . . . . . . . . . .     49
+      3.3.9 Đặc tả use case “Thanh toán đơn hàng” . . . . . . . . . . . . . . . . 51
+      3.3.10 Đặc tả use case “Quản lý đơn hàng” . . . . . . . . . . . . . . . . .      53
+      3.3.11 Đặc tả use case “Thanh toán và giải ngân cho người bán” . . . . .         54
+  3.4 Yêu cầu phi chức năng . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 57
+Chương 4 Thiết kế và triển khai hệ thống                                               61
+Tài liệu tham khảo                                                                     62
+                 1
+
+
+
+
+Danh sách chữ viết tắt
+                                          2
+
+
+
+
+Danh sách hình ảnh
+
+ 2.1 Quy trình nghiệp vụ 1 ca bán hàng thời trang ký gửi . . . . . . . . . . .         8
+ 2.2 Kết quả khảo sát hành vi mua sắm second-hand của người dùng . . . . .            10
+ 2.3 Các khó khăn khi bán sản phẩm second-hand của người dùng . . . . . . 10
+ 2.4 Các loại sản phẩm người dùng quan tâm . . . . . . . . . . . . . . . . . . . 11
+ 2.5 Mức độ sẵn sàng sử dụng . . . . . . . . . . . . . . . . . . . . . . . . . . . 11
+ 2.6 Các chức năng được quan tâm . . . . . . . . . . . . . . . . . . . . . . . . 11
+ 2.7 Trang chủ của Glammie . . . . . . . . . . . . . . . . . . . . . . . . . . .      12
+ 2.8 Form thanh lý ký gửi của Glammie . . . . . . . . . . . . . . . . . . . . .       13
+ 2.9 Chính sách của Glammie . . . . . . . . . . . . . . . . . . . . . . . . . .       14
+ 2.10 Chính sách ký gửi của Glammie . . . . . . . . . . . . . . . . . . . . . . .     14
+ 2.11 Danh sách sản phẩm của Glammie . . . . . . . . . . . . . . . . . . . . .        15
+ 2.12 Chi tiết sản phẩm và Đặt hàng . . . . . . . . . . . . . . . . . . . . . . .     16
+ 2.13 Giỏ hàng . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 17
+ 2.14 Thanh toán của Glammie . . . . . . . . . . . . . . . . . . . . . . . . . .      18
+ 2.15 Mail xác nhận đơn hàng của Glammie . . . . . . . . . . . . . . . . . . .        18
+ 2.16 Biên ký nhận, hóa đơn . . . . . . . . . . . . . . . . . . . . . . . . . . . .   19
+ 2.17 Đăng ký ký gửi sản phẩm trên The RealReal . . . . . . . . . . . . . . .         20
+ 2.18 Ước tính giá sản phẩm của The RealReal . . . . . . . . . . . . . . . . . . 21
+ 2.19 Chatbot của The RealReal . . . . . . . . . . . . . . . . . . . . . . . . .      22
+
+ 3.1 Sơ đồ use case phân rã cho use case Quản lý tài khoản . . . . . . . . . .        28
+ 3.2 Sơ đồ use case phân rã cho use case Ký gửi sản phẩm . . . . . . . . . . .        28
+ 3.3 Sơ đồ use case phân rã cho use case Quản lý sản phẩm ký gửi . . . . . .          29
+ 3.4 Sơ đồ use case phân rã cho use case Tìm kiếm và xem sản phẩm . . . . .           29
+ 3.5 Sơ đồ use case phân rã cho use case Đặt hàng . . . . . . . . . . . . . . .       30
+ 3.6 Sơ đồ use case phân rã cho use case Thanh toán đơn hàng . . . . . . . . 30
+ 3.7 Sơ đồ use case phân rã cho use case Quản lý đơn hàng . . . . . . . . . . . 31
+ 3.8 Sơ đồ use case phân rã cho use case Đánh giá sản phẩm . . . . . . . . . . 31
+ 3.9 Sơ đồ use case phân rã cho use case Hỗ trợ trực tuyến . . . . . . . . . . . 31
+ 3.10 Sơ đồ use case phân rã cho use case Xử lý ký gửi sản phẩm . . . . . . . 32
+ 3.11 Sơ đồ use case phân rã cho use case Quản lý sản phẩm ký gửi trên hệ thống 32
+ 3.12 Sơ đồ use case phân rã cho use case Quản lý đơn hàng . . . . . . . . . .        33
+                                         3
+
+3.13 Sơ đồ use case phân rã cho use case Thanh toán và giải ngân . . . . . .          33
+3.14 Sơ đồ use case phân rã cho use case Chăm sóc khách hàng . . . . . . . .          34
+3.15 Sơ đồ use case phân rã cho use case Quản lý danh mục sản phẩm . . . .            34
+3.16 Sơ đồ use case phân rã cho use case Quản lý voucher . . . . . . . . . . .        35
+3.17 Sơ đồ use case phân rã cho use case Báo cáo thống kê . . . . . . . . . .         36
+3.18 Sơ đồ tuần tự "Ký gửi sản phẩm" . . . . . . . . . . . . . . . . . . . . .        39
+3.19 Sơ đồ tuần tự "Xử lý yêu cầu ký gửi" . . . . . . . . . . . . . . . . . . . . 41
+3.20 Sơ đồ tuần tự "Tiếp nhận và xử lý sản phẩm" . . . . . . . . . . . . . . .        43
+3.21 Sơ đồ tuần tự "Xác nhận ký gửi" . . . . . . . . . . . . . . . . . . . . . .      45
+3.22 Sơ đồ tuần tự "Đăng bán sản phẩm ký gửi" . . . . . . . . . . . . . . . .         48
+3.23 Sơ đồ tuần tự "Đặt hàng" . . . . . . . . . . . . . . . . . . . . . . . . . . . 51
+3.24 Sơ đồ tuần tự "Thanh toán"     . . . . . . . . . . . . . . . . . . . . . . . .   53
+3.25 Sơ đồ tuần tự "Thanh toán và giải ngân" . . . . . . . . . . . . . . . . .        56
+Danh sách bảng
+                                          5
+
+
+
+
+Chương 1
+
+
+Giới thiệu đề tài
+
+1.1       Đặt vấn đề
+      Trong những năm gần đây, cùng với sự phát triển của thương mại điện tử và xu
+hướng tiêu dùng linh hoạt, mô hình bán hàng ký gửi (consignment) ngày càng trở nên
+phổ biến, đặc biệt trong các lĩnh vực như thời trang, đồ second-hand và hàng sưu tầm.
+Hình thức này cho phép người sở hữu sản phẩm bán hàng thông qua trung gian mà
+không cần trực tiếp quản lý, đồng thời giúp cửa hàng đa dạng nguồn hàng mà không
+cần đầu tư vốn lớn.
+   Tuy nhiên, thực tế cho thấy nhiều cửa hàng ký gửi hiện nay vẫn đang quản lý hoạt
+động bằng các phương pháp thủ công hoặc sử dụng các công cụ rời rạc như Excel, sổ
+sách hoặc ứng dụng nhắn tin. Điều này dẫn đến việc dữ liệu về người ký gửi, sản phẩm
+và trạng thái hàng hóa bị phân tán, gây khó khăn trong việc theo dõi, kiểm soát và tra
+cứu. Bên cạnh đó, các quy trình như duyệt sản phẩm, quản lý trạng thái hàng hóa và
+tính toán hoa hồng thường thiếu đồng bộ, dễ xảy ra sai sót và mất nhiều thời gian xử
+lý.
+   Trước những hạn chế đó, việc xây dựng một hệ thống quản lý bán hàng ký gửi là
+cần thiết nhằm số hóa và tích hợp toàn bộ quy trình nghiệp vụ. Hệ thống sẽ hỗ trợ
+quản lý thông tin tập trung, tự động hóa các hoạt động như theo dõi trạng thái sản
+phẩm, tính toán hoa hồng và xử lý thanh toán, từ đó nâng cao hiệu quả vận hành,
+giảm thiểu sai sót và cải thiện trải nghiệm cho cả cửa hàng và người ký gửi.
+
+
+1.2       Lý do chọn đề tài
+      Trong quá trình học tập và tìm hiểu thực tế, em nhận thấy rằng nhiều cửa hàng
+kinh doanh theo mô hình ký gửi hiện nay vẫn quản lý hoạt động chủ yếu bằng các
+phương pháp thủ công hoặc sử dụng các công cụ rời rạc. Điều này dẫn đến việc thông
+tin về sản phẩm, người ký gửi và giao dịch bị phân tán, gây khó khăn trong việc theo
+                                          6
+
+dõi, kiểm soát cũng như làm tăng nguy cơ sai sót trong quá trình vận hành.
+   Bên cạnh đó, thông qua việc nghiên cứu các mô hình thương mại điện tử và hệ thống
+quản lý bán hàng hiện đại, em nhận thấy rằng việc ứng dụng công nghệ thông tin vào
+hoạt động bán hàng ký gửi là hoàn toàn khả thi và có thể mang lại nhiều lợi ích thiết
+thực. Một hệ thống được thiết kế bài bản có thể hỗ trợ quản lý tập trung dữ liệu, tự
+động hóa các quy trình như tiếp nhận hàng ký gửi, theo dõi trạng thái sản phẩm, tính
+toán hoa hồng và xử lý thanh toán một cách chính xác và hiệu quả.
+  Vì những lý do trên, em quyết định lựa chọn đề tài “Phân tích và thiết kế hệ thống
+quản lý bán hàng ký gửi” nhằm xây dựng một mô hình hệ thống đáp ứng các nhu cầu
+thực tiễn. Thông qua đề tài này, em không chỉ củng cố kiến thức về phân tích và thiết
+kế hệ thống, cơ sở dữ liệu mà còn có cơ hội vận dụng tư duy logic và kỹ năng chuyên
+môn để giải quyết một bài toán thực tế, góp phần hỗ trợ quá trình chuyển đổi số trong
+lĩnh vực kinh doanh ký gửi.
+
+
+1.3    Mục tiêu và phạm vi đề tài
+  Mục tiêu của đề tài là xây dựng một hệ thống quản lý bán hàng ký gửi nhằm hỗ trợ
+toàn diện các hoạt động kinh doanh tại cửa hàng thời trang quy mô vừa. Hệ thống cho
+phép tiếp nhận sản phẩm từ người ký gửi, quản lý thông tin hàng hóa, theo dõi trạng
+thái sản phẩm, xử lý đơn hàng và tính toán hoa hồng. Thông qua việc số hóa và chuẩn
+hóa quy trình, hệ thống giúp giảm thiểu sai sót, tiết kiệm thời gian và nâng cao hiệu
+quả vận hành, đồng thời hỗ trợ người ký gửi và khách hàng dễ dàng theo dõi thông tin
+và thực hiện giao dịch một cách thuận tiện.
+  Phạm vi của đề tài tập trung vào việc phân tích và thiết kế hệ thống thông tin cho
+mô hình bán hàng ký gửi trong lĩnh vực thời trang, áp dụng cho cửa hàng quy mô vừa
+hoạt động theo hình thức trung gian. Hệ thống bao gồm các chức năng chính như quản
+lý người dùng, quản lý sản phẩm ký gửi, xử lý đơn hàng, theo dõi trạng thái sản phẩm,
+tính toán hoa hồng và thanh toán, với các đối tượng sử dụng gồm quản trị viên, nhân
+viên cửa hàng, người ký gửi và khách hàng.
+
+
+1.4    Bố cục đồ án
+  Chương 1: Giới thiệu đề tài: Đặt vấn đề, mục tiêu, phạm vi đề tài, cấu trúc đồ án
+  Chương 2: Khảo sát và phân tích yêu cầu: Khảo sát hiện trạng, tổng quan chức
+năng, yêu cầu nghiệp vụ, đặc tả chức năng (sơ đồ use case, sơ đồ tuần tự), yêu cầu phi
+chức năng
+  Chương 3: Thiết kế hệ thống: Thiết kế cơ sở dữ liệu, tổng quan về công nghệ sử dụng
+  Chương 4: Triển khai hệ thống
+  Chương 5: Kết luận và hướng phát triển
+                                          7
+
+
+
+
+Chương 2
+
+
+Khảo sát hiện trạng
+
+2.1     Giới thiệu về bán hàng ký gửi
+
+2.1.1    Giới thiệu chung về bán hàng ký gửi
+  Bán hàng ký gửi là hình thức kinh doanh trong đó người sở hữu sản phẩm (người
+gửi hàng) chuyển giao hàng hóa cho một bên trung gian để thực hiện việc trưng bày và
+bán sản phẩm. Sau khi sản phẩm được bán, bên trung gian sẽ giữ lại một phần giá trị
+dưới dạng hoa hồng, phần còn lại được thanh toán cho người gửi theo thỏa thuận. [1]
+  Trong mô hình này, có ba đối tượng chính tham gia gồm: người gửi hàng (seller),
+đơn vị ký gửi (cửa hàng hoặc nền tảng trung gian) và người mua (buyer). Người gửi
+hàng cung cấp sản phẩm, đơn vị ký gửi chịu trách nhiệm kiểm tra, quản lý và bán hàng,
+trong khi người mua là đối tượng thực hiện giao dịch.
+   Theo thực tiễn hoạt động, bán hàng ký gửi có thể được triển khai dưới hai hình
+thức chính:
+  • Ký gửi trực tiếp tại cửa hàng (offline);
+  • Ký gửi thông qua nền tảng trực tuyến (online).
+   Ngoài ra, tùy theo cách thức vận hành, hoạt động ký gửi có thể được tổ chức theo
+các phương thức sau:
+  • Ký gửi truyền thống: cửa hàng tự quản lý sản phẩm và bán trực tiếp;
+  • Ký gửi kết hợp: kết hợp giữa cửa hàng vật lý và kênh online;
+  • Ký gửi trên nền tảng số: toàn bộ quy trình được thực hiện thông qua hệ thống
+    trực tuyến.
+  Bán hàng ký gửi là một trong những hình thức mua bán ngày càng phổ biến trong
+bối cảnh phát triển của thương mại điện tử và xu hướng tiêu dùng bền vững, đặc biệt
+trong lĩnh vực thời trang secondhand và các sản phẩm tái sử dụng. Mô hình này giúp
+tối ưu hóa tài nguyên, giảm lãng phí và tạo cơ hội tiếp cận thị trường cho cả người bán
+và người mua. [2]
+                                               8
+
+2.1.2     Hiện trạng bán hàng ký gửi tại Việt Nam
+   Tại Việt Nam, mô hình bán hàng ký gửi đang phát triển nhanh, đặc biệt trên các
+nền tảng mạng xã hội và các cửa hàng thời trang secondhand. Tuy nhiên, phần lớn
+hoạt động quản lý vẫn mang tính thủ công, thiếu hệ thống hỗ trợ, dẫn đến nhiều hạn
+chế như: [3]
+  • Khó theo dõi trạng thái sản phẩm;
+  • Thiếu minh bạch trong thanh toán và hoa hồng;
+  • Quản lý dữ liệu phân tán, dễ sai sót;
+  • Khó mở rộng quy mô kinh doanh.
+   Bên cạnh đó, việc ứng dụng công nghệ trong quản lý bán hàng ký gửi tại Việt Nam
+vẫn còn hạn chế, các nền tảng chuyên biệt chưa phổ biến và chưa đáp ứng đầy đủ nhu
+cầu của người dùng.
+   Từ thực trạng trên, có thể thấy rằng mặc dù mô hình bán hàng ký gửi có nhiều
+tiềm năng phát triển, nhưng vẫn tồn tại nhiều vấn đề trong công tác quản lý và vận
+hành. Do đó, việc xây dựng một hệ thống quản lý bán hàng ký gửi hiệu quả là cần
+thiết nhằm nâng cao tính minh bạch, tối ưu hóa quy trình và cải thiện trải nghiệm cho
+các bên tham gia.
+
+
+2.2      Quy trình nghiệp vụ
+
+
+
+
+                 Hình 2.1: Quy trình nghiệp vụ 1 ca bán hàng thời trang ký gửi
+
+
+   Thông thường, quy trình bán hàng ký gửi bao gồm các bước cơ bản sau:
+  1. Tiếp nhận sản phẩm: Người gửi mang sản phẩm đến cửa hàng hoặc đăng ký ký
+      gửi trực tuyến. Đơn vị ký gửi tiến hành kiểm tra tình trạng sản phẩm và xác nhận
+      thông tin cần thiết.
+  2. Kiểm định sản phẩm: Đơn vị ký gửi kiểm tra chất lượng và tình trạng của sản
+     phẩm để đảm bảo rằng sản phẩm đáp ứng yêu cầu bán hàng. Sản phẩm phải được
+      đánh giá và kiểm tra kỹ càng trước khi tiếp tục quá trình.
+                                            9
+
+  3. Định giá sản phẩm: Sau khi kiểm định sản phẩm, đơn vị ký gửi sẽ tiến hành
+      định giá sản phẩm dựa trên các yếu tố như thương hiệu, tình trạng, nhu cầu thị
+     trường, và các yếu tố khác có liên quan.
+  4. Thỏa thuận: Người gửi hàng và đơn vị ký gửi sẽ thỏa thuận các điều khoản về
+      giá bán, tỷ lệ hoa hồng, và các điều kiện liên quan khác.
+  5. Bán hàng: Sau khi thỏa thuận, sản phẩm được đưa lên kệ cửa hàng hoặc đăng
+      tải trên các nền tảng trực tuyến để tiếp cận khách hàng. Khi có khách mua, giao
+      dịch sẽ được thực hiện và sản phẩm sẽ được bán.
+  6. Thanh toán: Sau khi sản phẩm được bán, đơn vị ký gửi sẽ thực hiện thanh toán
+      cho người gửi sau khi trừ đi phần hoa hồng theo thỏa thuận.
+  7. Báo cáo thống kê: Đơn vị ký gửi lập báo cáo thống kê về doanh thu, số lượng
+     sản phẩm đã bán và hoa hồng đã thu. Báo cáo này giúp theo dõi hiệu quả kinh
+      doanh và đánh giá hoạt động ký gửi.
+  8. Chăm sóc khách hàng sau bán: Sau khi giao dịch hoàn tất, đơn vị ký gửi tiếp
+      tục chăm sóc khách hàng, giải đáp thắc mắc và hỗ trợ bảo hành (nếu có), đồng
+      thời thu thập phản hồi để cải thiện dịch vụ.
+  Quy trình này giúp đơn vị ký gửi quản lý việc bán sản phẩm một cách hiệu quả và
+tạo sự minh bạch trong quá trình giao dịch. Tuy nhiên, hiện nay quy trình tại nhiều
+cửa hàng ký gửi vẫn chưa được tự động hóa, dẫn đến khó khăn trong việc kiểm soát và
+báo cáo. Do đó, việc xây dựng một hệ thống quản lý bán hàng ký gửi tự động là cần
+thiết để tối ưu hóa quy trình này.
+
+
+2.3      Khảo sát hệ thống hiện tại
+
+2.3.1     Khảo sát người dùng
+  Để thu thập thông tin về hành vi và nhu cầu của người dùng đối với mô hình bán
+hàng ký gửi, khảo sát được thực hiện thông qua Google Form với tổng cộng 88 người
+tham gia. Đối tượng khảo sát chủ yếu là sinh viên và người đi làm, những người có nhu
+cầu mua bán sản phẩm thời trang secondhand.
+   Kết quả khảo sát với 88 người tham gia cho thấy nhu cầu đối với sản phẩm secondhand
+là khá lớn, với 73 người đã từng mua và nhiều người thường xuyên mua sắm online,
+chiếm 83%. Các kênh phổ biến để tiếp cận sản phẩm bao gồm mạng xã hội, sàn thương
+mại điện tử và các cửa hàng ký gửi truyền thống.
+                                                 10
+
+
+
+
+(a) Tần suất mua sắm trực tuyến của người dùng        (b) Các kênh mua sản phẩm second-hand phổ biến
+
+
+            Hình 2.2: Kết quả khảo sát hành vi mua sắm second-hand của người dùng
+
+
+  Tuy nhiên, khảo sát cũng cho thấy nhiều hạn chế trong mô hình hiện tại. Người
+dùng gặp khó khăn trong việc đánh giá chất lượng sản phẩm, thiếu thông tin rõ ràng về
+tình trạng hàng hóa và giá cả chưa hợp lý. Đối với người bán, có khoảng 63,6% người
+tham gia khảo sát đã từng bán hoặc ký gửi sản phẩm. Trong đó, các vấn đề phổ biến
+bao gồm khó tìm người mua, tốn thời gian đăng bán và thiếu công cụ hỗ trợ định giá.
+Những hạn chế này cho thấy hoạt động bán hàng ký gửi hiện nay vẫn còn thiếu tính hệ
+thống và minh bạch.
+
+
+
+
+             Hình 2.3: Các khó khăn khi bán sản phẩm second-hand của người dùng
+
+
+  Về sản phẩm, người dùng chủ yếu quan tâm đến các mặt hàng thời trang như quần
+áo và phụ kiện. Tuy nhiên, người mua vẫn gặp nhiều khó khăn như khó đánh giá chất
+lượng sản phẩm, thiếu thông tin về tình trạng sản phẩm và giá cả chưa hợp lý.
+                                            11
+
+
+
+
+                      Hình 2.4: Các loại sản phẩm người dùng quan tâm
+
+
+  Ngoài ra, 84,1% số người tham gia khảo sát thể hiện sự đồng ý hoặc rất sẵn sàng sử
+dụng hệ thống bán hàng ký gửi trực tuyến . Các chức năng được quan tâm bao gồm
+kiểm định sản phẩm, theo dõi trạng thái ký gửi và thanh toán minh bạch.
+
+
+
+
+     Hình 2.5: Mức độ sẵn sàng sử dụng             Hình 2.6: Các chức năng được quan tâm
+
+
+  Từ các kết quả trên, có thể nhận thấy rằng mặc dù nhu cầu mua bán sản phẩm
+secondhand là khá lớn, nhưng người dùng vẫn gặp nhiều khó khăn trong quá trình sử
+dụng các kênh hiện tại. Những vấn đề này chủ yếu xuất phát từ việc thiếu một hệ
+thống quản lý tập trung, dẫn đến thông tin không minh bạch, quy trình không rõ ràng
+và trải nghiệm người dùng chưa được tối ưu. Đây là cơ sở quan trọng để đề xuất xây
+dựng một hệ thống quản lý bán hàng ký gửi phù hợp trong các phần tiếp theo.
+
+
+2.3.2    Khảo sát hệ thống tại Việt Nam
+  Tại Việt Nam, mô hình bán hàng ký gửi trong lĩnh vực thời trang đang ngày càng
+phát triển, trong đó có thể kể đến một số nền tảng tiêu biểu như Glammie. Đây là một
+nền tảng hoạt động theo mô hình trung gian, kết nối người gửi sản phẩm với người
+mua thông qua hệ thống trực tuyến.
+  Trang chủ của Glammie cung cấp cái nhìn tổng quan về hệ thống, bao gồm các danh
+mục sản phẩm chính, thanh tìm kiếm và các chương trình khuyến mãi nổi bật. Người
+                                          12
+
+dùng có thể dễ dàng truy cập các nhóm sản phẩm theo thương hiệu hoặc danh mục.
+Đây là điểm bắt đầu cho quá trình tìm kiếm và mua sắm của khách hàng trên hệ thống.
+
+
+
+
+                            Hình 2.7: Trang chủ của Glammie
+
+
+  Người dùng muốn đăng ký gửi sản phẩm cho cửa hàng sẽ phải điền form thanh lý ký
+gửi. Người dùng cần cung cấp các thông tin cần thiết như họ tên, số điện thoại và xác
+nhận đồng ý với chính sách ký gửi của hệ thống. Đây là bước khởi đầu trong quy trình
+tiếp nhận sản phẩm ký gửi, giúp cửa hàng thu thập thông tin và liên hệ với người gửi.
+                                           13
+
+
+
+
+                       Hình 2.8: Form thanh lý ký gửi của Glammie
+
+
+  Để tiết kiệm thời gian và chi phí vận chuyển, Glammie cho phép người bán gửi hình
+ảnh sản phẩm trước để đánh giá sơ bộ mức độ phù hợp. Dựa trên đó, cửa hàng có thể
+phản hồi về khả năng nhận ký gửi cũng như đề xuất mức giá ban đầu. Giá bán thường
+được đề xuất bởi cửa hàng và có thể được thỏa thuận với người gửi trước khi sản phẩm
+được đưa lên bán. Người bán có thể đưa ra mức giá mong muốn và quyết định có đồng
+ý ký gửi hay không. Sau khi đạt được thỏa thuận ban đầu, người dùng tiến hành gửi
+                                         14
+
+sản phẩm trực tiếp đến cửa hàng hoặc thông qua đơn vị vận chuyển, kèm theo thông
+tin nhận diện như số điện thoại và tên người ký gửi. Khi tiếp nhận sản phẩm, Glammie
+sẽ tiến hành kiểm tra và xử lý trong một khoảng thời gian nhất định, sau đó gửi email
+xác nhận ký gửi cho khách hàng. Email này có giá trị tương đương như một thỏa thuận
+ký gửi giữa hai bên.
+   Các trang chính sách của Glammie cung cấp đầy đủ thông tin về quy định hoạt
+động của hệ thống, bao gồm chính sách ký gửi, đổi trả, vận chuyển và bảo mật thông
+tin. Đặc biệt, phần chính sách ký gửi mô tả rõ các điều kiện và tiêu chuẩn mà sản
+phẩm cần đáp ứng để được chấp nhận, cũng như các trường hợp bị từ chối. Những nội
+dung này giúp đảm bảo tính minh bạch, nâng cao độ tin cậy của nền tảng và hỗ trợ
+cửa hàng trong việc kiểm định chất lượng sản phẩm trước khi đưa vào kinh doanh.
+
+
+
+
+Hình 2.9: Chính sách của Glam-
+mie
+                                       Hình 2.10: Chính sách ký gửi của Glammie
+
+
+   Trang danh sách sản phẩm hiển thị các mặt hàng thời trang đang được bán trên hệ
+thống dưới dạng lưới. Mỗi sản phẩm bao gồm hình ảnh, tên, mã sản phẩm và giá bán.
+Ngoài ra, hệ thống cung cấp các bộ lọc như chất liệu, phong cách và kích thước giúp
+người dùng tìm kiếm sản phẩm phù hợp với nhu cầu một cách nhanh chóng.
+                                           15
+
+
+
+
+                       Hình 2.11: Danh sách sản phẩm của Glammie
+
+
+   Trang chi tiết sản phẩm cung cấp đầy đủ thông tin về một sản phẩm cụ thể như
+hình ảnh, giá bán, tình trạng còn hàng, mô tả chi tiết và các thuộc tính như kích thước,
+màu sắc. Tại đây, người dùng có thể lựa chọn số lượng và thực hiện hành động thêm
+vào giỏ hàng hoặc mua ngay. Đây là bước quan trọng trong quy trình mua hàng của hệ
+thống.
+                                            16
+
+
+
+
+                         Hình 2.12: Chi tiết sản phẩm và Đặt hàng
+
+
+   Trang giỏ hàng cho phép người dùng xem lại các sản phẩm đã chọn mua, điều chỉnh
+số lượng hoặc xóa sản phẩm. Hệ thống cũng hiển thị tổng giá trị đơn hàng và cung cấp
+các chức năng tiếp tục mua sắm hoặc tiến hành thanh toán. Đây là bước trung gian
+trước khi hoàn tất giao dịch.
+                                          17
+
+
+
+
+                                  Hình 2.13: Giỏ hàng
+
+
+  Trang thanh toán của Glammie cho phép người dùng hoàn tất quá trình mua hàng
+thông qua việc nhập đầy đủ thông tin giao hàng và lựa chọn phương thức thanh toán.
+Hệ thống hỗ trợ các hình thức thanh toán như thanh toán khi nhận hàng (COD) và
+chuyển khoản ngân hàng. Đồng thời, thông tin giỏ hàng được hiển thị rõ ràng, bao
+gồm tên sản phẩm, số lượng, giá tiền, phí vận chuyển và tổng giá trị đơn hàng. Sau khi
+người mua nhập địa chỉ, hệ thống sẽ tự động đo lường khoảng cách và tính chi phí vận
+chuyển. Ngoài ra, người dùng có thể áp dụng mã giảm giá, sử dụng điểm tích lũy và
+xác nhận các điều khoản trước khi tiến hành thanh toán. Đây là bước cuối cùng trong
+quy trình mua hàng, đảm bảo giao dịch được thực hiện chính xác và minh bạch.
+                                         18
+
+
+
+
+                         Hình 2.14: Thanh toán của Glammie
+
+
+  Sau khi người dùng hoàn tất đặt hàng và thanh toán, hệ thống Glammie sẽ gửi
+email xác nhận đơn hàng. Tuy nhiên, một hạn chế của hệ thống là chưa hỗ trợ chức
+năng hủy đơn trực tiếp. Trong trường hợp muốn hủy đơn, người dùng cần liên hệ với
+cửa hàng thông qua các kênh như Facebook hoặc Instagram để được xử lý thủ công.
+
+
+
+
+                    Hình 2.15: Mail xác nhận đơn hàng của Glammie
+
+
+  Sau khi người bán gửi hàng đến bán sẽ nhận được biên ký nhận gồm những sản
+phẩm được bán và số tiền nhận được sau khi trừ tiền hoa hồng cho cửa hàng.
+                                             19
+
+
+
+
+                              Hình 2.16: Biên ký nhận, hóa đơn
+
+
+  Ngoài ra, Glammie hiện chưa tích hợp các chức năng chăm sóc khách hàng trực tiếp
+trên hệ thống. Khi cần hỗ trợ, người dùng phải liên hệ với cửa hàng thông qua các kênh
+bên ngoài như Facebook hoặc Instagram.
+  Có thể thấy mô hình bán hàng ký gửi ngày càng phát triển và phù hợp với xu hướng
+tiêu dùng bền vững. Hệ thống Glammie đã xây dựng được quy trình cơ bản như tiếp
+nhận, kiểm định, định giá và bán sản phẩm. Tuy nhiên, hệ thống vẫn còn hạn chế về
+chức năng, đặc biệt trong việc theo dõi sản phẩm ký gửi, quản lý thông tin và tương
+tác với người dùng.
+
+
+2.3.3    Khảo sát hệ thống tại nước ngoài
+  Để có cái nhìn toàn diện hơn về mô hình bán hàng ký gửi, nhóm tiến hành khảo
+sát hệ thống The RealReal – một nền tảng quốc tế tiêu biểu trong lĩnh vực này. Qua
+đó, có thể nhận diện các điểm khác biệt so với hệ thống trong nước và làm cơ sở đề
+xuất yêu cầu cho hệ thống xây dựng. Các chức năng cơ bản của hệ thống The RealReal
+tương đối tương đồng với Glammie như đã trình bày ở trên, do đó ưm không đi sâu mô
+tả lại mà tập trung phân tích các chức năng nổi bật, khác biệt hoặc cần được cải thiện
+so với hệ thống trong nước.
+                                           20
+
+   Khác với cách đăng ký ký gửi bằng form thủ công như Glammie, The RealReal cung
+cấp một giao diện đăng ký ký gửi được thiết kế chuyên nghiệp và có cấu trúc rõ ràng,
+đồng thời tích hợp hệ thống quản lý dành cho người bán. Hệ thống The RealReal cung
+cấp dashboard dành cho người bán, cho phép theo dõi trạng thái sản phẩm ký gửi như
+đang kiểm định, đang bán hoặc đã bán, đồng thời hiển thị giá bán và khoản thu nhập
+tương ứng. [4]
+
+
+
+
+                  Hình 2.17: Đăng ký ký gửi sản phẩm trên The RealReal
+
+
+  Trang “Get Your Handbag Estimate” của The RealReal cung cấp công cụ hỗ trợ
+người dùng ước tính giá sản phẩm trước khi ký gửi. Người dùng có thể nhập các thông
+tin như thương hiệu, kiểu dáng và tình trạng sản phẩm để hệ thống đưa ra khoảng giá
+dự kiến. Đồng thời, hệ thống còn hiển thị dữ liệu từ các sản phẩm tương tự đã được
+bán trước đó, giúp người dùng tham khảo mức giá và thu nhập thực tế. Đây là một
+chức năng khá hữu ích và hiện chưa phổ biến tại các nền tảng ký gửi ở Việt Nam, góp
+phần tăng tính minh bạch và hỗ trợ người dùng đưa ra quyết định ký gửi chính xác
+hơn.
+                                          21
+
+
+
+
+                   Hình 2.18: Ước tính giá sản phẩm của The RealReal
+
+
+  Đối với The RealReal, sau khi người dùng đồng ý ký gửi, hệ thống sẽ tiếp nhận sản
+phẩm và tiến hành kiểm định thông qua đội ngũ chuyên gia trước khi đưa lên bán.
+Người bán không được phép tự đặt giá sản phẩm, mà giá bán được quyết định bởi hệ
+thống kết hợp với chuyên gia. Đồng thời, khi đã gửi hàng và chấp nhận ký gửi, đồng
+nghĩa với việc người bán ủy quyền cho nền tảng thực hiện toàn bộ quá trình bán hàng.
+  Bên cạnh đó, The RealReal còn hỗ trợ chatbot tích hợp trên hệ thống nhằm hỗ trợ
+người dùng trong quá trình sử dụng dịch vụ. Chatbot có khả năng hướng dẫn người
+dùng lựa chọn các nhu cầu như mua hàng, ký gửi sản phẩm hoặc hỗ trợ kỹ thuật, từ
+đó kết nối đến bộ phận phù hợp. Chức năng này giúp nâng cao trải nghiệm người dùng
+và giảm tải cho bộ phận chăm sóc khách hàng.
+                                          22
+
+
+
+
+                          Hình 2.19: Chatbot của The RealReal
+
+
+  Từ kết quả khảo sát, có thể thấy The RealReal xây dựng một hệ thống bán hàng ký
+gửi với mức độ hoàn thiện cao, bao gồm quy trình ký gửi rõ ràng, cơ chế kiểm định chặt
+chẽ, định giá minh bạch và hỗ trợ người bán theo dõi sản phẩm thông qua hệ thống
+quản lý. Tuy nhiên, mô hình này có mức độ kiểm soát cao và hạn chế quyền chủ động
+của người bán. Đây là cơ sở quan trọng để xem xét, lựa chọn và đề xuất các chức năng
+phù hợp cho hệ thống xây dựng, kết hợp giữa tính linh hoạt và tính hệ thống.
+
+
+2.4     Nhu cầu của người dùng
+  Dựa trên kết quả khảo sát kết hợp với việc thu thập ý kiến từ một số người tham
+gia, có thể xác định các nhu cầu chính của người dùng đối với hệ thống.
+
+
+2.4.1    Nhu cầu của người bán
+  Người gửi sản phẩm mong muốn có một hệ thống hỗ trợ quá trình ký gửi đơn giản,
+minh bạch và dễ theo dõi. Cụ thể:
+                                           23
+
+  • Đăng ký ký gửi sản phẩm một cách thuận tiện trên hệ thống
+  • Theo dõi trạng thái sản phẩm (đang kiểm định, đang bán, đã bán)
+  • Biết rõ giá bán và khoản thu nhập nhận được
+  • Nhận thông tin cập nhật về quá trình xử lý sản phẩm
+  • Đảm bảo tính minh bạch trong định giá và thanh toán
+
+
+2.4.2     Nhu cầu của người mua
+  Người mua quan tâm đến trải nghiệm mua sắm thuận tiện, thông tin rõ ràng và độ
+tin cậy của sản phẩm. Các nhu cầu bao gồm:
+  • Tìm kiếm và lọc sản phẩm dễ dàng theo nhu cầu
+  • Xem thông tin chi tiết về sản phẩm (tình trạng, giá, hình ảnh)
+  • Theo dõi trạng thái đơn hàng sau khi mua
+  • Có khả năng hủy đơn hoặc xử lý vấn đề phát sinh thuận tiện
+  • Đảm bảo chất lượng và nguồn gốc sản phẩm
+
+
+2.4.3     Nhu cầu của nhân viên
+  Nhân viên đóng vai trò trung gian trong việc tiếp nhận, kiểm định và quản lý sản
+phẩm ký gửi. Do đó, hệ thống cần hỗ trợ các nhu cầu sau:
+  • Tiếp nhận và quản lý thông tin sản phẩm ký gửi từ người bán
+  • Định giá sản phẩm
+  • Quản lý trạng thái sản phẩm (đang kiểm định, đang bán, đã bán)
+  • Quản lý đơn hàng và theo dõi quá trình vận chuyển
+  • Xử lý yêu cầu từ khách hàng (hủy đơn, khiếu nại, hỗ trợ)
+  • Quản lý thanh toán và tính toán hoa hồng cho người bán
+  • Xem báo cáo, thống kê tình hình kinh doanh
+
+
+2.5      Đề xuất hệ thống mới
+  Từ kết quả khảo sát, em đề xuất xây dựng hệ thống Website bán hàng ký gửi trực
+tuyến dựa trên các nguyên tắc sau:
+  • Tuân thủ quy trình ký gửi thực tế: Hệ thống hỗ trợ đầy đủ quy trình ký gửi
+      từ gửi yêu cầu ký gửi, kiểm duyệt sơ bộ, tiếp nhận sản phẩm, kiểm định, định giá,
+      đăng bán cho đến giải ngân cho người bán và hoàn trả sản phẩm khi cần thiết.
+  • Phù hợp với mô hình kinh doanh ký gửi: Hệ thống được thiết kế để đáp ứng
+      đặc thù của hoạt động bán hàng ký gửi, trong đó người bán gửi sản phẩm cho cửa
+      hàng kiểm định và bán hộ, còn hệ thống đóng vai trò trung gian quản lý thông
+      tin, trạng thái sản phẩm, thanh toán và vận chuyển.
+                                           24
+
+  • Thân thiện với người dùng Việt Nam: Giao diện hệ thống đơn giản, dễ sử
+       dụng; hỗ trợ thanh toán trực tuyến, đơn vị vận chuyển bên thứ ba và các chức
+       năng hỗ trợ trực tuyến nhằm nâng cao trải nghiệm cho người mua, người bán và
+       nhân viên vận hành.
+   Hệ thống được phát triển nhằm hỗ trợ hoạt động kinh doanh của cửa hàng ký gửi
+theo mô hình thương mại điện tử, cho phép quản lý tập trung toàn bộ quy trình từ tiếp
+nhận yêu cầu ký gửi đến bán hàng và xử lý sau bán. Các chức năng cốt lõi bao gồm:
+  • Quy trình ký gửi sản phẩm: Hỗ trợ người bán ước lượng giá sản phẩm, tạo
+       yêu cầu ký gửi, gửi sản phẩm đến cửa hàng, theo dõi trạng thái ký gửi, xác nhận
+       ký gửi hoặc từ chối ký gửi sau định giá, đồng thời hỗ trợ nhận lại sản phẩm khi
+    cần thiết.
+  • Quy trình xử lý và đăng bán sản phẩm: Hỗ trợ nhân viên kiểm duyệt yêu
+       cầu ký gửi, tiếp nhận sản phẩm, kiểm định, định giá, cập nhật thông tin và đăng
+       sản phẩm lên hệ thống để bán.
+  • Quy trình mua bán và thanh toán: Hỗ trợ người mua tìm kiếm sản phẩm,
+    đặt hàng, áp dụng mã ưu đãi, thanh toán đơn hàng, theo dõi đơn hàng, đánh giá
+       sản phẩm và gửi yêu cầu hoàn hàng khi cần.
+  • Quản lý vận chuyển và giải ngân: Hệ thống tích hợp với đơn vị vận chuyển
+       và hệ thống thanh toán để hỗ trợ giao nhận sản phẩm, hoàn trả sản phẩm, xử lý
+       thanh toán, hoàn tiền và giải ngân cho người bán.
+  • Quản trị hệ thống: Hỗ trợ quản trị viên quản lý tài khoản, danh mục sản phẩm,
+       voucher và theo dõi báo cáo, thống kê hoạt động của toàn hệ thống.
+   Mục tiêu của hệ thống là xây dựng một nền tảng bán hàng ký gửi trực tuyến minh
+bạch, dễ sử dụng, hỗ trợ hiệu quả cho cả người bán, người mua, nhân viên cửa hàng và
+quản trị viên, đồng thời đáp ứng nhu cầu vận hành thực tế của mô hình kinh doanh ký
+gửi.
+                                         25
+
+
+
+
+Chương 3
+
+
+Phân tích yêu cầu
+
+3.1     Các chính sách của cửa hàng
+
+3.1.1     Chính sách thanh lý ký gửi
+  • Người bán gửi thông tin và hình ảnh sản phẩm để hệ thống đánh giá sơ bộ trước
+    khi tiếp nhận.
+  • Phí ký gửi là 20% giá bán
+  • Nếu gửi hàng online thì cửa hàng hỗ trợ lấy hàng tại nhà miễn phí với số lượng ký
+    gửi tối thiếu 20 sản phẩm và khối lượng dưới 15kg và kích thước bọc hàng không
+      quá 50X40X40cm. Nếu không đủ điều kiện thì khách hàng tự thanh toán phí vận
+      chuyển.
+  • Chỉ nhận ký gửi các sản phẩm phù hợp danh mục kinh doanh, còn giá trị sử dụng
+    và đáp ứng yêu cầu về chất lượng, hình thức.
+  • Sau khi kiểm tra, cửa hàng sẽ đề xuất giá bán và thỏa thuận với người bán trước
+      khi đưa sản phẩm lên hệ thống.
+  • Sản phẩm không đạt yêu cầu có thể bị từ chối hoặc hoàn trả cho người bán.
+  • Thời hạn ký gửi là 45 ngày. Khi sản phẩm hết hạn ký gửi, cửa hàng sẽ gửi thông
+    báo hết hạn ký gửi qua email. Quý khách có thể đến lấy hàng trực tiếp hoặc cửa
+      hàng gửi về địa chỉ đã đăng ký qua giao hàng (phí vận chuyển dô người ký gửi
+      thanh toán). Sau 72h kể từ khi gửi thông báo mà không có bất kì liên hệ nào từ
+      khách kí gửi về việc xử lý số hàng hết hạn này sẽ thuộc quyền sở hữu của cửa
+      hàng.
+  • Khi sản phẩm bán thành công, người bán nhận tiền sau khi trừ hoa hồng theo
+      thỏa thuận.
+                                          26
+
+3.1.2   Chính sách trả hàng
+  • Người mua được yêu cầu trả hàng khi sản phẩm bị lỗi, sai mô tả hoặc sai thông
+    tin so với đơn đặt hàng.
+  • Yêu cầu trả hàng phải được gửi trong thời gian quy định là 3 ngày sau khi nhận
+    hàng.
+  • Người mua cần cung cấp lý do và hình ảnh minh chứng để hệ thống kiểm tra, xử
+    lý.
+  • Sản phẩm trả lại phải còn nguyên trạng và chưa bị tác động làm thay đổi tình
+    trạng ban đầu.
+  • Sau khi xác minh hợp lệ, hệ thống sẽ thực hiện hoàn tiền.
+
+
+3.1.3   Chính sách chuyển hàng miễn phí
+  • Hệ thống có thể áp dụng miễn phí vận chuyển cho các đơn hàng trên 400.000 đồng.
+  • Nếu không thuộc diện miễn phí, phí vận chuyển sẽ được tính theo địa chỉ giao
+    hàng và đơn vị vận chuyển liên kết.
+  • Mọi chi phí vận chuyển phải được hiển thị rõ ràng trước khi người mua xác nhận
+    thanh toán.
+
+
+3.1.4   Chính sách bảo mật thông tin
+  • Hệ thống cam kết bảo mật thông tin cá nhân và thông tin giao dịch của người
+    dùng.
+  • Dữ liệu chỉ được sử dụng cho các mục đích phục vụ ký gửi, đặt hàng, thanh toán,
+    giao hàng và hỗ trợ khách hàng.
+  • Thông tin chỉ được cung cấp cho bên vận chuyển, thanh toán hoặc cơ quan có
+    thẩm quyền khi cần thiết.
+  • Người dùng có trách nhiệm bảo mật tài khoản và mật khẩu của mình.
+
+
+3.1.5   Chính sách đặt hàng và thanh toán
+  • Người mua có thể chọn sản phẩm, thêm vào giỏ hàng hoặc mua ngay trên hệ thống.
+  • Hệ thống hỗ trợ các hình thức thanh toán như COD và chuyển khoản/thanh toán
+    trực tuyến.
+  • Trước khi xác nhận đơn hàng, hệ thống hiển thị đầy đủ thông tin sản phẩm, phí
+    vận chuyển và tổng tiền thanh toán.
+  • Sau khi đặt hàng thành công, hệ thống cập nhật trạng thái đơn hàng để người
+    mua theo dõi.
+  • Các trường hợp phát sinh lỗi thanh toán, hủy đơn hoặc hoàn tiền sẽ được xử lý
+    theo quy trình của hệ thống.
+                                          27
+
+3.2      Tổng quan chức năng
+ Hệ thống có 3 tác nhân chính gồm: khách hàng, nhân viên và quản trị viên (admin).
+ • Khách hàng: Có thể đóng vai trò là người mua hoặc người bán. Trong đó:
+    – Người mua: Sử dụng hệ thống để quản lý tài khoản, tìm kiếm và xem sản
+          phẩm, đặt hàng, thanh toán, theo dõi đơn hàng, yêu cầu hoàn hàng và đánh
+          giá sản phẩm.
+        – Người bán: Sử dụng hệ thống để ước lượng giá sản phẩm, tạo yêu cầu ký gửi,
+          theo dõi tình trạng sản phẩm ký gửi, quản lý doanh thu và theo dõi thanh
+          toán.
+ • Nhân viên: Là người vận hành trực tiếp tại cửa hàng, thực hiện các nghiệp vụ
+      vận hành như tiếp nhận, kiểm định, định giá và cập nhật thông tin sản phẩm ký
+      gửi; quản lý sản phẩm trên hệ thống; xử lý đơn hàng, thanh toán, giải ngân và hỗ
+      trợ khách hàng.
+ • Admin: có vai trò quản trị hệ thống, bao gồm quản lý tài khoản, quản lý danh
+  mục sản phẩm và theo dõi báo cáo, thống kê tổng thể.
+ Ngoài 4 tác nhân chính, hệ thống còn có 2 tác nhân bên ngoài:
+ • Đơn vị vận chuyển: Là đối tác bên thứ ba hỗ trợ vận chuyển sản phẩm từ người
+      bán đến cửa hàng, giao hàng cho người mua và hoàn trả sản phẩm khi cần thiết.
+ • Hệ thống thanh toán: Là hệ thống bên thứ ba hỗ trợ xác nhận thanh toán, giải
+   ngân cho người bán và hoàn tiền cho người mua.
+                                          28
+
+3.2.1   Sơ đồ use case cho "Khách hàng"
+
+
+
+
+            Hình 3.1: Sơ đồ use case phân rã cho use case Quản lý tài khoản
+
+
+
+
+            Hình 3.2: Sơ đồ use case phân rã cho use case Ký gửi sản phẩm
+                                  29
+
+
+
+
+ Hình 3.3: Sơ đồ use case phân rã cho use case Quản lý sản phẩm ký gửi
+
+
+
+
+Hình 3.4: Sơ đồ use case phân rã cho use case Tìm kiếm và xem sản phẩm
+                               30
+
+
+
+
+     Hình 3.5: Sơ đồ use case phân rã cho use case Đặt hàng
+
+
+
+
+Hình 3.6: Sơ đồ use case phân rã cho use case Thanh toán đơn hàng
+                              31
+
+
+
+
+Hình 3.7: Sơ đồ use case phân rã cho use case Quản lý đơn hàng
+
+
+
+
+Hình 3.8: Sơ đồ use case phân rã cho use case Đánh giá sản phẩm
+
+
+
+
+Hình 3.9: Sơ đồ use case phân rã cho use case Hỗ trợ trực tuyến
+                                             32
+
+3.2.2   Sơ đồ use case cho "Nhân viên"
+
+
+
+
+            Hình 3.10: Sơ đồ use case phân rã cho use case Xử lý ký gửi sản phẩm
+
+
+
+
+    Hình 3.11: Sơ đồ use case phân rã cho use case Quản lý sản phẩm ký gửi trên hệ thống
+                                  33
+
+
+
+
+   Hình 3.12: Sơ đồ use case phân rã cho use case Quản lý đơn hàng
+
+
+
+
+Hình 3.13: Sơ đồ use case phân rã cho use case Thanh toán và giải ngân
+                                           34
+
+
+
+
+           Hình 3.14: Sơ đồ use case phân rã cho use case Chăm sóc khách hàng
+
+
+3.2.3   Sơ đồ use case cho "Admin"
+
+
+
+
+        Hình 3.15: Sơ đồ use case phân rã cho use case Quản lý danh mục sản phẩm
+                              35
+
+
+
+
+Hình 3.16: Sơ đồ use case phân rã cho use case Quản lý voucher
+                                          36
+
+
+
+
+            Hình 3.17: Sơ đồ use case phân rã cho use case Báo cáo thống kê
+
+
+
+3.3     Đặc tả chức năng
+
+3.3.1   Đặc tả use case “Đăng nhập”
+
+Tên Use Case           Đăng nhập
+Mục đích               Cung cấp chức năng đăng nhập cho người dùng, cho phép hệ
+                       thống xác thực tài khoản và phân quyền truy cập theo vai trò
+                       tương ứng.
+Tác nhân               Người dùng
+Tiền điều kiện         Người dùng đã có tài khoản hợp lệ trong hệ thống.
+Luồng sự kiện chính    1. Người dùng chọn chức năng đăng nhập.
+                       2. Hệ thống hiển thị form đăng nhập.
+                       3. Người dùng nhập tên đăng nhập/email và mật khẩu.
+                       4. Người dùng nhấn nút đăng nhập.
+                                       37
+
+                       5. Hệ thống kiểm tra thông tin đăng nhập.
+                       6. Nếu thông tin hợp lệ, hệ thống xác thực tài khoản và xác
+                       định vai trò của người dùng.
+                       7. Hệ thống tạo phiên làm việc cho người dùng.
+                       8. Hệ thống thông báo đăng nhập thành công và chuyển người
+                       dùng đến giao diện chính tương ứng với vai trò.
+Luồng sự kiện thay 4a. Người dùng nhập thiếu tên đăng nhập/email hoặc mật
+thế                    khẩu: hệ thống hiển thị thông báo yêu cầu nhập đầy đủ thông
+                       tin.
+                       5a. Thông tin đăng nhập không hợp lệ: hệ thống thông báo
+                       lỗi và yêu cầu người dùng nhập lại thông tin.
+                       5b. Tài khoản chưa được kích hoạt hoặc bị khóa: hệ thống
+                       thông báo trạng thái tài khoản và không cho phép đăng nhập.
+                       6a. Hệ thống không thể xác thực do lỗi kết nối hoặc lỗi máy
+                       chủ: hệ thống thông báo lỗi và yêu cầu người dùng thử lại sau.
+Điều    kiện     tiên Người dùng đã đăng ký tài khoản trên hệ thống
+quyết
+Kết quả                Người dùng đăng nhập thành công và được chuyển đến giao
+                       diện chính phù hợp với vai trò.
+
+
+3.3.2   Đặc tả use case “Ký gửi sản phẩm”
+
+Tên Use Case           Ký gửi sản phẩm
+Mục đích               Cho phép người bán thực hiện các thao tác ban đầu trong quy
+                       trình ký gửi sản phẩm, bao gồm ước lượng giá sản phẩm và
+                       tạo yêu cầu ký gửi trên hệ thống.
+Tác nhân               Người bán
+Tiền điều kiện         Người bán đã đăng nhập vào hệ thống và có sản phẩm cần ký
+                       gửi.
+Luồng sự kiện chính    1. Người bán chọn chức năng “Ký gửi sản phẩm”.
+(thành công)
+                       2. Hệ thống hiển thị giao diện ký gửi sản phẩm.
+                       3. Người bán nhập thông tin sản phẩm cơ bản.
+                                      38
+
+                      4. Người bán chọn tình trạng sản phẩm.
+                      5. Người bán yêu cầu hệ thống ước lượng giá sản phẩm.
+                      6. Hệ thống hiển thị giá ước lượng.
+                      7. Người bán nhập thông tin sản phẩm chi tiết.
+                      8. Người bán chọn phương thức gửi sản phẩm.
+                      9. Người bán gửi yêu cầu ký gửi.
+                      10. Hệ thống kiểm tra thông tin yêu cầu ký gửi.
+                      11. Hệ thống lưu yêu cầu ký gửi với trạng thái “Chờ duyệt”.
+                      12. Hệ thống thông báo tạo yêu cầu ký gửi thành công.
+Luồng sự kiện thay 6a. Người bán không tiếp tục tạo yêu cầu sau khi xem giá ước
+thế                   lượng: hệ thống hủy thao tác và quay lại giao diện trước đó.
+                      10a. Thông tin yêu cầu ký gửi chưa hợp lệ hoặc còn thiếu: hệ
+                      thống thông báo lỗi và yêu cầu người bán bổ sung thông tin.
+                      11a. Hệ thống không thể lưu yêu cầu do lỗi kết nối hoặc lỗi
+                      máy chủ: hệ thống thông báo tạo yêu cầu không thành công
+                      và yêu cầu người bán thử lại sau.
+Kết quả               Yêu cầu ký gửi được tạo thành công và có trạng thái “Chờ
+                      duyệt”.
+                                      39
+
+
+
+
+                  Hình 3.18: Sơ đồ tuần tự "Ký gửi sản phẩm"
+
+
+
+3.3.3   Đặc tả use case “Xử lý yêu cầu ký gửi”
+Tên Use Case        Xử lý yêu cầu ký gửi
+Mục đích            Cho phép nhân viên xem xét yêu cầu ký gửi của người bán,
+                    duyệt hoặc từ chối yêu cầu; nếu yêu cầu được duyệt thì hướng
+                    dẫn người bán gửi sản phẩm đến cửa hàng hoặc tạo vận đơn
+                    nếu người bán chọn gửi qua đơn vị vận chuyển.
+Tác nhân            Nhân viên, Người bán, Đơn vị vận chuyển
+Tiền điều kiện      Người bán đã tạo yêu cầu ký gửi và yêu cầu đang ở trạng thái
+                   “Chờ duyệt”.
+                                      40
+
+
+Luồng sự kiện chính   1. Nhân viên truy cập danh sách yêu cầu ký gửi.
+(thành công)
+                      2. Hệ thống hiển thị danh sách yêu cầu ký gửi đang chờ duyệt.
+                      3. Nhân viên chọn và xem chi tiết yêu cầu ký gửi.
+                      4. Nhân viên kiểm tra thông tin yêu cầu.
+                      5. Nhân viên duyệt yêu cầu ký gửi.
+                      6. Hệ thống cập nhật trạng thái “Đã duyệt/Chờ gửi sản phẩm”.
+                      7. Hệ thống kiểm tra phương thức gửi sản phẩm mà người
+                      bán đã chọn.
+                      8. Nếu người bán chọn tự mang sản phẩm đến cửa hàng, hệ
+                      thống gửi thông báo hướng dẫn người bán mang sản phẩm
+                      đến cửa hàng.
+                      9. Khi sản phẩm được gửi tới cửa hàng, nhân viên ấn nút"Xác
+                      nhận đã nhận sản phẩm", hệ thống cập nhật trạng thái “Đã
+                      duyệt/Chờ tiếp nhận”; đồng thời gửi thông báo đến cho người
+                      bán.
+Luồng sự kiện thay 5a. Nhân viên từ chối yêu cầu ký gửi: hệ thống cập nhật trạng
+thế                   thái “Từ chối”, gửi thông báo cho người bán và use case kết
+                      thúc.
+                      8a. Người bán chọn gửi sản phẩm qua đơn vị vận chuyển: nhân
+                      viên tạo vận đơn gửi sản phẩm, hệ thống lưu thông tin vận
+                      đơn và gửi thông tin vận đơn cho người bán.
+                      8b. Không tạo được vận đơn: hệ thống thông báo lỗi và yêu
+                      cầu nhân viên thử lại.
+Kết quả               Yêu cầu ký gửi được duyệt hoặc bị từ chối. Nếu được duyệt,
+                      người bán được hướng dẫn gửi sản phẩm đến cửa hàng hoặc
+                      nhận thông tin vận đơn để gửi qua đơn vị vận chuyển.
+                                       41
+
+
+
+
+                 Hình 3.19: Sơ đồ tuần tự "Xử lý yêu cầu ký gửi"
+
+
+
+3.3.4   Đặc tả use case “Tiếp nhận và xử lý sản phẩm”
+Tên Use Case         Tiếp nhận và xử lý sản phẩm
+                                      42
+
+
+Mục đích              Cho phép nhân viên tiếp nhận sản phẩm do người bán gửi đến
+                      cửa hàng, kiểm định sản phẩm, định giá và cập nhật trạng
+                      thái ký gửi.
+Tác nhân              Nhân viên, Người bán
+Tiền điều kiện        Yêu cầu ký gửi đã được duyệt và sản phẩm đã được người bán
+                      gửi đến cửa hàng.
+Luồng sự kiện chính   1. Nhân viên truy cập danh sách sản phẩm Đã duyệt/Chờ tiếp
+(thành công)          nhận
+                      2. Hệ thống hiển thị danh sách sản phẩm chờ tiếp nhận.
+                      3. Nhân viên chọn sản phẩm cần tiếp nhận.
+                      4. Hệ thống hiển thị thông tin sản phẩm ký gửi.
+                      5. Nhân viên tiếp nhận sản phẩm.
+                      6. Hệ thống cập nhật trạng thái “Đang xử lý”.
+                      7. Nhân viên kiểm định sản phẩm.
+                      8. Nếu sản phẩm đạt yêu cầu, nhân viên cập nhật thông tin
+                      sản phẩm sau định giá.
+                      9. Hệ thống lưu thông tin sản phẩm sau định giá.
+                      10. Hệ thống cập nhật trạng thái “Chờ người bán xác nhận ký
+                      gửi”.
+                      11. Hệ thống gửi thông báo kết quả định giá cho người bán.
+Luồng sự kiện thay 7a. Sản phẩm không đạt yêu cầu: nhân viên chọn hoàn trả lại
+thế                   người bán, hệ thống cập nhật trạng thái “Chờ hoàn trả” và
+                      thông báo cho người bán.
+Kết quả               Sản phẩm được tiếp nhận và xử lý. Nếu đạt yêu cầu, sản phẩm
+                      được lưu thông tin sau định giá và chuyển sang trạng thái
+                      “Chờ người bán xác nhận ký gửi”. Nếu không đạt yêu cầu, sản
+                      phẩm được ghi nhận hoàn trả cho người bán.
+                                           43
+
+
+
+
+                 Hình 3.20: Sơ đồ tuần tự "Tiếp nhận và xử lý sản phẩm"
+
+
+
+3.3.5   Đặc tả use case “Xác nhận ký gửi”
+Tên Use Case            Xác nhận ký gửi
+Mục đích                Cho phép người bán xem kết quả kiểm định, giá sản phẩm
+                        sau định giá và xác nhận có tiếp tục ký gửi sản phẩm trên hệ
+                        thống hay không.
+Tác nhân                Người bán, Nhân viên
+Tiền điều kiện          Sản phẩm đã được nhân viên tiếp nhận, kiểm định, định giá
+                        và đang ở trạng thái “Chờ người bán xác nhận ký gửi”.
+Luồng sự kiện chính     1. Người bán truy cập danh sách sản phẩm ký gửi.
+(thành công)
+                                       44
+
+                      2. Hệ thống hiển thị danh sách sản phẩm ký gửi của người
+                      bán.
+                      3. Người bán chọn sản phẩm đang chờ xác nhận ký gửi.
+                      4. Hệ thống hiển thị thông tin sản phẩm, kết quả kiểm định
+                      và giá sau định giá.
+                      5. Người bán chọn xác nhận ký gửi sản phẩm.
+                      6. Hệ thống cập nhật trạng thái ký gửi là “Đã xác nhận ký
+                      gửi/Chờ đăng bán”.
+                      7. Hệ thống thông báo cho nhân viên về việc người bán đã xác
+                      nhận ký gửi.
+Luồng sự kiện thay 5a. Người bán từ chối ký gửi sau định giá: hệ thống cập nhật
+thế                   trạng thái “Từ chối ký gửi sau định giá/Chờ hoàn trả” và yêu
+                      cầu người bán chọn phương thức nhận lại sản phẩm.
+Kết quả               Nếu người bán xác nhận ký gửi, sản phẩm chuyển sang trạng
+                      thái “Đã xác nhận ký gửi/Chờ đăng bán”. Nếu người bán từ
+                      chối ký gửi sau định giá, hệ thống ghi nhận trạng thái chờ
+                      hoàn trả sản phẩm cho người bán.
+                                          45
+
+
+
+
+                      Hình 3.21: Sơ đồ tuần tự "Xác nhận ký gửi"
+
+
+
+3.3.6   Đặc tả use case “Đăng bán sản phẩm ký gửi”
+Tên Use Case           Đăng bán sản phẩm ký gửi
+Mục đích               Cho phép nhân viên quản lý việc đăng bán sản phẩm ký gửi
+                       trên hệ thống.
+Tác nhân               Nhân viên
+Tiền điều kiện         Sản phẩm ký gửi đã được người bán xác nhận ký gửi và đang
+                       ở trạng thái “Đã xác nhận ký gửi/Chờ đăng bán” hoặc sản
+                       phẩm đã tồn tại trên hệ thống bán hàng.
+Luồng sự kiện chính    1. Nhân viên truy cập chức năng “Đăng bán sản phẩm ký gửi”.
+(thành công)
+                       2. Hệ thống hiển thị danh sách sản phẩm ký gửi.
+                       3. Nhân viên chọn một trong các thao tác:
+                          - Tìm kiếm sản phẩm ký gửi.
+                          - Thêm sản phẩm lên hệ thống bán hàng.
+                          - Cập nhật thông tin sản phẩm.
+                 46
+
+  - Ẩn sản phẩm.
+  - Gỡ sản phẩm.
+Tìm kiếm sản phẩm ký gửi:
+  - Nhân viên nhập từ khóa tìm kiếm.
+  - Hệ thống hiển thị danh sách sản phẩm phù hợp với từ
+khóa tìm kiếm.
+Thêm sản phẩm lên hệ thống bán hàng:
+  - Nhân viên chọn sản phẩm ký gửi đang chờ đăng bán.
+  - Hệ thống hiển thị thông tin chi tiết sản phẩm.
+  - Nhân viên kiểm tra thông tin sản phẩm.
+  - Hệ thống lưu thông tin sản phẩm đăng bán.
+  - Hệ thống cập nhật trạng thái sản phẩm là “Đang bán”.
+  - Hệ thống thông báo đăng bán sản phẩm thành công.
+Cập nhật thông tin sản phẩm:
+  - Nhân viên chọn sản phẩm cần cập nhật.
+  - Hệ thống hiển thị thông tin chi tiết sản phẩm.
+  - Nhân viên chỉnh sửa thông tin sản phẩm.
+  - Hệ thống lưu thông tin đã cập nhật và thông báo cập nhật
+thành công.
+Ẩn sản phẩm:
+  - Nhân viên chọn sản phẩm cần ẩn.
+  - Hệ thống cập nhật trạng thái hiển thị của sản phẩm là
+“Ẩn”.
+  - Hệ thống thông báo ẩn sản phẩm thành công.
+Gỡ sản phẩm:
+  - Nhân viên chọn sản phẩm cần gỡ.
+  - Hệ thống cập nhật trạng thái sản phẩm là “Ngừng đăng
+bán”.
+  - Hệ thống thông báo gỡ sản phẩm thành công.
+                                     47
+
+
+Luồng sự kiện thay 3a. Không có sản phẩm phù hợp với từ khóa tìm kiếm: hệ
+thế                 thống hiển thị thông báo không tìm thấy sản phẩm phù hợp
+                    và cho phép nhân viên nhập lại từ khóa hoặc quay lại danh
+                    sách sản phẩm.
+                    3b. Thông tin sản phẩm chưa đầy đủ hoặc không hợp lệ: hệ
+                    thống hiển thị thông báo lỗi và yêu cầu nhân viên bổ sung
+                    hoặc chỉnh sửa thông tin.
+                    3c. Hệ thống không thể lưu thông tin sản phẩm hoặc cập nhật
+                    trạng thái: hệ thống thông báo lỗi và yêu cầu nhân viên thử
+                    lại sau.
+Kết quả             Sản phẩm ký gửi được đăng bán, cập nhật thông tin, ẩn hoặc
+                    gỡ khỏi hệ thống tùy theo thao tác của nhân viên. Hệ thống
+                    ghi nhận thay đổi và hiển thị thông báo kết quả xử lý.
+                        48
+
+
+
+
+Hình 3.22: Sơ đồ tuần tự "Đăng bán sản phẩm ký gửi"
+                                      49
+
+3.3.7   Đặc tả use case “Mua ngay”
+Tên Use Case          Mua ngay
+Mục đích              Cho phép người mua mua sản phẩm ngay mà không cần thêm
+                      sản phẩm vào giỏ hàng.
+Tác nhân              Người mua, Người bán
+Tiền điều kiện        Sản phẩm cho phép “Mua ngay” và đang ở trạng thái “Đang
+                      bán”.
+Luồng sự kiện chính   1. Người mua chọn “Mua ngay” và xác nhận.
+(thành công)
+                      2. Hệ thống xử lý mua ngay, cập nhật trạng thái sản phẩm là
+                      “Đã bán”.
+                      3. Người mua và người bán nhận thông báo.
+Kết quả               Sản phẩm được mua ngay và không còn hiển thị trong danh
+                      sách sản phẩm đang bán.
+
+
+3.3.8   Đặc tả use case “Đặt hàng”
+Tên Use Case          Đặt hàng
+Mục đích              Cho phép người mua đặt mua sản phẩm.
+Tác nhân              Người mua
+Tiền điều kiện        Người mua đã chọn sản phẩm cần mua và sản phẩm đang ở
+                      trạng thái có thể đặt hàng.
+Luồng sự kiện chính   1. Người mua chọn sản phẩm cần mua.
+(thành công)
+                      2. Người mua xác nhận mua ngay.
+                      3. Hệ thống hiển thị giao diện đặt hàng.
+                      4. Người mua cập nhật hoặc xác nhận thông tin giao hàng.
+                      5. Người mua chọn một trong các phương thức thanh toán:
+                        - Thanh toán trực tuyến/chuyển khoản.
+                        - Thanh toán khi nhận hàng (COD).
+                      Thanh toán trực tuyến/chuyển khoản:
+                        - Người mua chọn phương thức thanh toán trực tuyến hoặc
+                      chuyển khoản.
+                                      50
+
+                        - Hệ thống ghi nhận phương thức thanh toán.
+                        - Sau khi tạo đơn hàng, hệ thống cập nhật trạng thái đơn
+                      hàng là “Chờ thanh toán”.
+                      Thanh toán khi nhận hàng (COD):
+                        - Người mua chọn phương thức thanh toán khi nhận hàng.
+                        - Hệ thống ghi nhận phương thức thanh toán COD.
+                        - Sau khi tạo đơn hàng, hệ thống cập nhật trạng thái đơn
+                      hàng là “Chờ xác nhận”.
+                      6. Người mua nhập mã voucher nếu có.
+                      7. Người mua xác nhận tạo đơn hàng.
+                      8. Hệ thống tạo đơn hàng.
+                      9. Hệ thống thông báo tạo đơn hàng thành công.
+Luồng sự kiện thay 6a. Mã voucher không hợp lệ: hệ thống thông báo mã voucher
+thế                   không hợp lệ và không áp dụng voucher.
+                      8a. Hệ thống không thể tạo đơn hàng: hệ thống thông báo lỗi
+                      và yêu cầu người mua thử lại sau.
+Kết quả               Đơn hàng được tạo thành công. Nếu người mua chọn thanh
+                      toán trực tuyến/chuyển khoản, đơn hàng có trạng thái “Chờ
+                      thanh toán”. Nếu người mua chọn COD, đơn hàng có trạng
+                      thái “Chờ xác nhận”.
+                                    51
+
+
+
+
+                    Hình 3.23: Sơ đồ tuần tự "Đặt hàng"
+
+
+
+3.3.9   Đặc tả use case “Thanh toán đơn hàng”
+Tên Use Case       Thanh toán đơn hàng
+Mục đích           Cho phép người mua thực hiện thanh toán cho đơn hàng đã
+                   tạo bằng phương thức thanh toán trực tuyến hoặc chuyển
+                   khoản.
+Tác nhân           Người mua, Hệ thống thanh toán
+                                      52
+
+
+Tiền điều kiện        Đơn hàng đã được tạo thành công, có phương thức thanh toán
+                      trực tuyến/chuyển khoản và đang ở trạng thái “Chờ thanh
+                      toán”.
+Luồng sự kiện chính   1. Người mua chọn chức năng “Thanh toán đơn hàng”.
+(thành công)
+                      2. Hệ thống gửi yêu cầu thanh toán đến hệ thống thanh toán.
+                      3. Hệ thống thanh toán hiển thị giao diện nhập thông tin
+                      thanh toán.
+                      4. Người mua nhập thông tin thanh toán.
+                      5. Người mua xác nhận thanh toán.
+                      6. Hệ thống thanh toán xử lý giao dịch.
+                      7. Nếu giao dịch thành công, hệ thống cập nhật trạng thái
+                      đơn hàng là “Đã thanh toán”.
+                      8. Hệ thống tạo hóa đơn thanh toán.
+                      9. Hệ thống thông báo thanh toán thành công cho người mua.
+Luồng sự kiện thay 6a. Giao dịch thanh toán thất bại: hệ thống hiển thị thông
+thế                   báo thanh toán không thành công và giữ trạng thái đơn hàng
+                      là “Chờ thanh toán”.
+                      6b. Người mua hủy thanh toán: hệ thống hủy thao tác thanh
+                      toán và quay lại thông tin đơn hàng.
+                      8a. Hệ thống không thể tạo hóa đơn: hệ thống ghi nhận lỗi và
+                      cho phép tạo lại hóa đơn sau.
+Kết quả               Nếu thanh toán thành công, đơn hàng được cập nhật trạng
+                      thái “Đã thanh toán” và hóa đơn được tạo. Nếu thanh toán
+                      thất bại hoặc bị hủy, đơn hàng vẫn ở trạng thái “Chờ thanh
+                      toán”.
+                                       53
+
+
+
+
+                      Hình 3.24: Sơ đồ tuần tự "Thanh toán"
+
+
+
+3.3.10   Đặc tả use case “Quản lý đơn hàng”
+Tên Use Case          Quản lý đơn hàng
+Mục đích              Cho phép nhân viên quản lý các đơn hàng trên hệ thống, bao
+                      gồm xem danh sách đơn hàng, xem chi tiết đơn hàng, xác
+                      nhận đơn hàng, tạo mã vận đơn và cập nhật trạng thái đơn
+                      hàng.
+Tác nhân              Nhân viên, Đơn vị vận chuyển
+Tiền điều kiện        Hệ thống đã có đơn hàng được tạo bởi người mua. Nhân viên
+                      đã đăng nhập vào hệ thống và có quyền quản lý đơn hàng.
+Luồng sự kiện chính   1. Nhân viên truy cập chức năng “Quản lý đơn hàng”.
+(thành công)
+                      2. Hệ thống hiển thị danh sách đơn hàng.
+                      3. Nhân viên chọn một trong các thao tác:
+                        - Xem chi tiết đơn hàng.
+                        - Xác nhận đơn hàng.
+                        - Cập nhật trạng thái đơn hàng.
+                                     54
+
+                     Xem chi tiết đơn hàng:
+                       - Nhân viên chọn đơn hàng cần xem.
+                       - Hệ thống hiển thị thông tin chi tiết đơn hàng.
+                     Xác nhận đơn hàng:
+                       - Nhân viên chọn đơn hàng cần xác nhận.
+                       - Hệ thống hiển thị thông tin chi tiết đơn hàng.
+                       - Nhân viên xác nhận đơn hàng.
+                       - Hệ thống cập nhật trạng thái đơn hàng là “Đã xác nhận”.
+                       - Hệ thống tạo mã vận đơn thông qua đơn vị vận chuyển.
+                       - Hệ thống lưu mã vận đơn và thông báo xác nhận đơn hàng
+                     thành công.
+                     Cập nhật trạng thái đơn hàng:
+                       - Nhân viên chọn đơn hàng cần cập nhật.
+                       - Nhân viên nhập hoặc chọn trạng thái mới của đơn hàng.
+                       - Hệ thống lưu trạng thái mới của đơn hàng.
+                       - Hệ thống thông báo cập nhật trạng thái đơn hàng thành
+                     công.
+                     Cập nhật trạng thái vận chuyển:
+                       - Đơn vị vận chuyển cập nhật trạng thái vận chuyển của
+                     đơn hàng.
+                       - Hệ thống ghi nhận trạng thái vận chuyển mới.
+Luồng sự kiện thay 2a. Không có đơn hàng trong hệ thống: hệ thống hiển thị
+thế                  thông báo chưa có đơn hàng.
+                     5a. Không tạo được mã vận đơn: hệ thống thông báo lỗi và
+                     yêu cầu nhân viên thử lại.
+Kết quả              Nhân viên có thể xem và xử lý đơn hàng. Đơn hàng được xác
+                     nhận, tạo mã vận đơn hoặc cập nhật trạng thái tương ứng.
+                     Trạng thái vận chuyển của đơn hàng được ghi nhận khi có cập
+                     nhật từ đơn vị vận chuyển.
+
+
+3.3.11    Đặc tả use case “Thanh toán và giải ngân cho người bán”
+Tên Use Case         Thanh toán và giải ngân cho người bán
+                                      55
+
+
+Mục đích              Cho phép nhân viên thực hiện tính tiền bán sản phẩm ký gửi,
+                      tính hoa hồng của cửa hàng, tạo hóa đơn và giải ngân số tiền
+                      còn lại cho người bán sau khi đơn hàng hoàn tất.
+Tác nhân              Nhân viên, Người bán, Hệ thống thanh toán
+Tiền điều kiện        Sản phẩm ký gửi đã được bán thành công, đơn hàng đã hoàn
+                      tất và không phát sinh yêu cầu hoàn hàng/khiếu nại.
+Luồng sự kiện chính   1. Nhân viên truy cập chức năng “Thanh toán và giải ngân”.
+(thành công)
+                      2. Hệ thống hiển thị danh sách các đơn hàng và sản phẩm ký
+                      gửi đủ điều kiện giải ngân.
+                      3. Nhân viên chọn đơn hàng hoặc sản phẩm ký gửi cần giải
+                      ngân.
+                      4. Hệ thống hiển thị thông tin chi tiết đơn hàng, giá bán sản
+                      phẩm và thông tin người bán.
+                      5. Nhân viên thực hiện tính tiền người bán được nhận.
+                      6. Hệ thống tính hoa hồng của cửa hàng theo tỷ lệ đã cấu
+                      hình.
+                      7. Hệ thống tính số tiền cần giải ngân cho người bán sau khi
+                      trừ hoa hồng.
+                      8. Nhân viên xác nhận thực hiện giải ngân.
+                      9. Hệ thống gửi yêu cầu thanh toán/giải ngân đến hệ thống
+                      thanh toán.
+                      10. Hệ thống thanh toán xử lý giao dịch giải ngân.
+                      11. Hệ thống cập nhật trạng thái thanh toán là “Đã giải ngân”.
+                      12. Hệ thống tạo hóa đơn hoặc phiếu thanh toán.
+                      13. Hệ thống gửi thông báo giải ngân thành công cho người
+                      bán.
+Luồng sự kiện thay 2a. Không có đơn hàng và sản phẩm đủ điều kiện giải ngân:
+thế                   hệ thống hiển thị thông báo không có dữ liệu phù hợp.
+                      8a. Nhân viên hủy thao tác giải ngân: hệ thống không thực
+                      hiện giao dịch và quay lại danh sách giải ngân.
+                                        56
+
+                     10a. Giao dịch giải ngân thất bại: hệ thống cập nhật trạng
+                     thái “Giải ngân thất bại”, hiển thị thông báo lỗi và cho phép
+                     nhân viên thực hiện lại.
+                     12a. Hệ thống không thể tạo hóa đơn: hệ thống ghi nhận lỗi
+                     và cho phép tạo lại sau.
+Điều    kiện   tiên Hệ thống có sẵn thông tin đơn hàng đã hoàn tất, thông tin
+quyết                sản phẩm ký gửi, tỷ lệ hoa hồng, thông tin người bán và kết
+                     nối với hệ thống thanh toán.
+Kết quả              Người bán được giải ngân số tiền bán sản phẩm sau khi trừ
+                     hoa hồng. Hệ thống cập nhật trạng thái thanh toán, lưu thông
+                     tin hóa đơn và ghi nhận lịch sử giải ngân.
+
+
+
+
+                Hình 3.25: Sơ đồ tuần tự "Thanh toán và giải ngân"
+                                         57
+
+3.4   Yêu cầu phi chức năng
+STT   Nhóm yêu cầu            Yêu cầu chi tiết
+1     Hiệu năng               - Hệ thống phản hồi dưới 3 giây đối với các thao tác phổ
+      (Performance)           biến như đăng nhập, tìm kiếm sản phẩm, xem chi tiết
+                              sản phẩm, tạo yêu cầu ký gửi và đặt hàng.
+                              - Hệ thống có thể xử lý đồng thời tối thiểu 100 người
+                              dùng trong cùng một thời điểm.
+                              - Thời gian tải danh sách sản phẩm, danh sách đơn hàng
+                              và danh sách yêu cầu ký gửi không vượt quá 5 giây trong
+                              điều kiện hoạt động bình thường.
+2     Khả năng mở rộng        - Hệ thống được thiết kế theo hướng module hóa, dễ
+      (Scalability)           dàng mở rộng các chức năng như quản lý ký gửi, quản
+                              lý đơn hàng, thanh toán và báo cáo thống kê.
+                              - Có khả năng mở rộng để tích hợp thêm phương thức
+                              thanh toán mới hoặc đơn vị vận chuyển mới.
+                              - Cho phép bổ sung thêm loại sản phẩm, danh mục sản
+                              phẩm hoặc trạng thái xử lý mới mà không ảnh hưởng
+                              lớn đến các chức năng hiện có.
+3     Tính     sẵn     sàng   - Hệ thống cần đảm bảo hoạt động ổn định trong thời
+      (Availability)          gian cửa hàng vận hành.
+                              - Hạn chế tối đa tình trạng gián đoạn khi người dùng
+                              thực hiện các chức năng quan trọng như đặt hàng, thanh
+                              toán, tạo yêu cầu ký gửi và giải ngân.
+                              - Dữ liệu đơn hàng, sản phẩm ký gửi và thanh toán cần
+                              được lưu trữ an toàn để có thể khôi phục khi xảy ra lỗi.
+                                        58
+
+
+4   Bảo mật (Security)   - Mật khẩu người dùng phải được mã hóa trước khi lưu
+                         trữ trong cơ sở dữ liệu.
+                         - Hệ thống phân quyền người dùng theo vai trò như khách
+                         hàng, người bán, nhân viên và quản trị viên.
+                         - Người dùng chỉ được truy cập các chức năng phù hợp
+                         với vai trò của mình.
+                         - Các thông tin nhạy cảm như thông tin tài khoản, đơn
+                         hàng, thanh toán và giải ngân phải được bảo vệ.
+5   Tính thân thiện      - Giao diện hệ thống đơn giản, dễ sử dụng và phù hợp
+    (Usability)          với người dùng phổ thông.
+                         - Các chức năng chính như tìm kiếm sản phẩm, đặt hàng,
+                         tạo yêu cầu ký gửi và theo dõi trạng thái cần được bố
+                         trí rõ ràng.
+                         - Hệ thống hiển thị thông báo rõ ràng khi thao tác thành
+                         công, thất bại hoặc cần bổ sung thông tin.
+6   Tương thích          - Hệ thống hoạt động ổn định trên các trình duyệt phổ
+    (Compatibility)      biến như Google Chrome, Microsoft Edge và Firefox.
+                         - Giao diện tương thích với máy tính, laptop và các kích
+                         thước màn hình phổ biến.
+                         - Hệ thống có khả năng hiển thị tốt trên thiết bị di động
+                         nếu được triển khai giao diện responsive.
+7   Bảo trì              - Mã nguồn được tổ chức rõ ràng theo các thành phần
+    (Maintainability)    như giao diện, xử lý nghiệp vụ và truy cập dữ liệu.
+                         - Các chức năng được xây dựng tách biệt để dễ dàng sửa
+                         lỗi, nâng cấp hoặc bổ sung tính năng mới.
+                         - Quy trình xử lý nghiệp vụ như ký gửi, đặt hàng, thanh
+                         toán và giải ngân cần được thiết kế rõ ràng để thuận
+                         tiện cho việc bảo trì.
+                                    59
+
+
+8   Kiểm thử            - Hệ thống hỗ trợ kiểm thử các chức năng chính như
+    (Testability)       đăng nhập, tạo yêu cầu ký gửi, xử lý ký gửi, đặt hàng,
+                        thanh toán và giải ngân.
+                        - Các luồng thay thế như sai thông tin đăng nhập, voucher
+                        không hợp lệ, thanh toán thất bại hoặc sản phẩm không
+                        đạt yêu cầu cần được kiểm thử.
+                        - Dữ liệu kiểm thử cần bao gồm nhiều trạng thái sản
+                        phẩm, đơn hàng và yêu cầu ký gửi khác nhau.
+9   Ghi log (Logging)   - Hệ thống ghi lại các thao tác quan trọng như đăng
+                        nhập, tạo/cập nhật yêu cầu ký gửi, cập nhật trạng thái
+                        đơn hàng, thanh toán và giải ngân.
+                        - Log cần lưu thông tin thời gian thực hiện, người thực
+                        hiện và nội dung thao tác.
+                        - Các lỗi phát sinh trong quá trình đặt hàng, thanh toán,
+                        tạo vận đơn hoặc giải ngân cần được ghi nhận để hỗ trợ
+                        kiểm tra và xử lý sự cố.
+60
+                 61
+
+
+
+
+Chương 4
+
+
+Thiết kế và triển khai hệ thống
+62
+                                        63
+
+
+
+
+Tài liệu tham khảo
+
+[1] giaohangnhanh. (2024) Ký gửi là gì? lợi ích, quy định và thủ tục
+   ký gửi hàng. [Online]. Available: https://ghn.vn/blogs/thong-tin-giao-hang/
+   ky-gui-la-gi-quy-dinh-hang-ky-gui-quy-trinh-giao-nhan
+
+[2] Pos365. (2026) https://www.pos365.vn/ban-hang-ky-gui-7555.html. [Online]. Avail-
+    able: ChitiòểỉtcÕáchlÕàmgiÕàunhanhchÕẽngtòệămÕẻhÕằnhbÕánhÕàngkÕígòệắi
+
+[3] Sapo.   (2025)   Nhà   kho    kí   gửi   -   mô   hình   kinh    doanh    nhiều
+   lợi nhuận thời bão giá. [Online]. Available: https://www.sapo.vn/blog/
+   nha-kho-ki-gui-mo-hinh-kinh-doanh-nhieu-loi-nhuan-thoi-bao-gia
+
+[4] TRR. (2026) Frequently asked questions - consignment. [Online]. Available:
+    https://www.therealreal.com/faq/consign
+64
+65
+

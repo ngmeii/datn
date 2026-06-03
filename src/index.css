@@ -1,0 +1,118 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,500;1,600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  overflow-x: hidden;
+  background: #f8f0e9;
+  color: #171310;
+  font-family: "Inter", Arial, sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+::placeholder {
+  color: #88786d;
+  opacity: 1;
+}
+
+.image-ring {
+  outline: 8px solid #fcf5ef;
+  box-shadow: 0 0 0 1px rgba(23, 19, 16, 0.14), 0 16px 35px rgba(31, 22, 15, 0.16);
+}
+
+/* Keep the warm palette while making secondary information easier to scan. */
+.text-ink\/45 {
+  color: rgb(23 19 16 / 0.66);
+}
+
+.text-ink\/50 {
+  color: rgb(23 19 16 / 0.7);
+}
+
+.text-ink\/55 {
+  color: rgb(23 19 16 / 0.74);
+}
+
+.text-ink\/60,
+.text-ink\/62 {
+  color: rgb(23 19 16 / 0.78);
+}
+
+.text-ink\/65 {
+  color: rgb(23 19 16 / 0.82);
+}
+
+.border-black\/10 {
+  border-color: rgb(23 19 16 / 0.18);
+}
+
+.border-black\/15 {
+  border-color: rgb(23 19 16 / 0.24);
+}
+
+/* Staff and admin screens use explicit colors to match their dashboard layouts. */
+.border-\[\#eadfd4\],
+.border-\[\#eadfd5\],
+.border-\[\#eee5de\] {
+  border-color: #dccabd;
+}
+
+.bg-\[\#fbf6f1\],
+.bg-\[\#fbf7f2\],
+.bg-\[\#fdfbf9\] {
+  background-color: #f7eee7;
+}
+
+.bg-\[\#fffaf5\],
+.bg-\[\#fdfaf7\] {
+  background-color: #fcf5ef;
+}
+
+.bg-\[\#f8efe7\] {
+  background-color: #f2e2d5;
+}
+
+.text-\[\#7c6e62\],
+.text-\[\#9b9088\],
+.text-\[\#9a9089\],
+.text-\[\#a3978e\],
+.text-\[\#a29489\],
+.text-\[\#aaa098\] {
+  color: #76665c;
+}
+
+.text-\[\#685d56\],
+.text-\[\#6d6057\] {
+  color: #594b43;
+}
+
+@layer components {
+  .site-container {
+    width: min(100% - 32px, 1600px);
+    margin-inline: auto;
+  }
+
+  @media (min-width: 1024px) {
+    .site-container {
+      width: min(100% - 72px, 1600px);
+    }
+  }
+}
