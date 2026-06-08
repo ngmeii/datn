@@ -11,6 +11,7 @@ import ProductDetailPage from "./pages/ProductDetailPage.jsx";
 import ProductPage from "./pages/ProductPage.jsx";
 import StaffConsignmentDetailPage from "./pages/StaffConsignmentDetailPage.jsx";
 import StaffPage from "./pages/StaffPage.jsx";
+import StaffProductDetailPage from "./pages/StaffProductDetailPage.jsx";
 import StaffProductPage from "./pages/StaffProductPage.jsx";
 
 export default function App() {
@@ -21,6 +22,7 @@ export default function App() {
       <Route path="/staff" element={<StaffPage />} />
       <Route path="/staff/consignments/:id" element={<StaffConsignmentDetailPage />} />
       <Route path="/staff/products" element={<StaffProductPage />} />
+      <Route path="/staff/products/:id" element={<StaffProductDetailPage />} />
       <Route element={<Layout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/products" element={<ProductPage />} />

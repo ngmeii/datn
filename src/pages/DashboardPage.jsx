@@ -11,7 +11,8 @@ const statusText = {
   inspecting: "Đang kiểm định",
   priced: "Đã định giá",
   seller_confirmed: "Người bán đã xác nhận",
-  listed: "Đã đăng bán",
+  seller_cancelled: "Đã hủy ký gửi",
+  listed: "Đang đăng bán",
   sold: "Đã bán",
   expired: "Hết hạn",
   returned: "Đã hoàn trả",
@@ -194,9 +195,12 @@ function ConsignmentRow({ item, isStaff, onAction }) {
         </div>
       ) : (
         item.status === "priced" && (
-          <div className="mt-4">
+          <div className="mt-4 flex flex-wrap gap-2">
             <ActionButton onClick={() => onAction(() => api(`/consignments/${item.id}/confirm`, { method: "PATCH" }))}>
               Xác nhận ký gửi
+            </ActionButton>
+            <ActionButton muted onClick={() => onAction(() => api(`/consignments/${item.id}/cancel`, { method: "PATCH", body: JSON.stringify({ reason: "Người bán hủy ký gửi sau định giá." }) }))}>
+              Hủy ký gửi
             </ActionButton>
           </div>
         )

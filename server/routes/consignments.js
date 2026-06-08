@@ -36,7 +36,7 @@ const itemToUiStatus = {
   processing: "received",
   waiting_confirm: "priced",
   confirmed: "seller_confirmed",
-  seller_rejected: "rejected",
+  seller_rejected: "seller_cancelled",
   waiting_return: "expired",
   returned: "returned",
   cancelled: "returned",
@@ -62,11 +62,14 @@ router.get("/", requireAuth, async (req, res, next) => {
               ci.seller_price AS final_price,
               ci.images,
               ci.status AS item_status,
+              p.product_id,
+              p.sell_status,
               ci.created_at
        FROM consignment_items ci
        JOIN consignment_requests cr ON cr.request_id = ci.request_id
        JOIN users u ON u.user_id = cr.seller_id
        LEFT JOIN categories c ON c.category_id = ci.category_id
+       LEFT JOIN products p ON p.consignment_item_id = ci.consignment_item_id
        WHERE 1 = 1 ${staffQuery}
        ORDER BY ci.created_at DESC`,
       { userId: req.user.id },
@@ -75,7 +78,7 @@ router.get("/", requireAuth, async (req, res, next) => {
     return res.json(
       rows.map((row) => ({
         ...row,
-        status: itemToUiStatus[row.item_status] || row.item_status,
+        status: productStatusToUiStatus(row) || itemToUiStatus[row.item_status] || row.item_status,
       })),
     );
   } catch (error) {
@@ -189,15 +192,48 @@ router.patch("/:id/confirm", requireAuth, async (req, res, next) => {
   }
 });
 
+router.patch("/:id/cancel", requireAuth, async (req, res, next) => {
+  try {
+    const result = await query(
+      `UPDATE consignment_items ci
+       JOIN consignment_requests cr ON cr.request_id = ci.request_id
+       SET ci.status = 'seller_rejected',
+           ci.updated_at = NOW(),
+           cr.status = 'cancelled',
+           cr.cancel_reason = COALESCE(NULLIF(:reason, ''), cr.cancel_reason),
+           cr.cancelled_at = NOW(),
+           cr.updated_at = NOW()
+       WHERE ci.consignment_item_id = :id
+         AND cr.seller_id = :sellerId
+         AND ci.status = 'waiting_confirm'
+         AND NOT EXISTS (
+           SELECT 1
+           FROM products p
+           WHERE p.consignment_item_id = ci.consignment_item_id
+         )`,
+      { id: req.params.id, sellerId: req.user.id, reason: req.body?.reason || "Nguoi ban huy ky gui sau dinh gia." },
+    );
+
+    if (!result.affectedRows) {
+      return res.status(409).json({ message: "Yêu cầu ký gửi không còn ở trạng thái có thể hủy." });
+    }
+
+    return res.json({ message: "Đã hủy ký gửi." });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 router.post("/:id/publish", requireAuth, requireRole("staff", "admin"), async (req, res, next) => {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
 
     const [items] = await connection.execute(
-      `SELECT ci.*, cr.seller_id
+      `SELECT ci.*, cr.seller_id, p.product_id
        FROM consignment_items ci
        JOIN consignment_requests cr ON cr.request_id = ci.request_id
+       LEFT JOIN products p ON p.consignment_item_id = ci.consignment_item_id
        WHERE ci.consignment_item_id = ?
          AND ci.status = 'confirmed'
          AND ci.seller_price IS NOT NULL
@@ -209,6 +245,11 @@ router.post("/:id/publish", requireAuth, requireRole("staff", "admin"), async (r
     if (!item) {
       await connection.rollback();
       return res.status(409).json({ message: "Yeu cau ky gui chua duoc nguoi ban xac nhan." });
+    }
+
+    if (item.product_id) {
+      await connection.rollback();
+      return res.status(409).json({ message: "Sản phẩm này đã được đăng bán." });
     }
 
     const [productResult] = await connection.execute(
@@ -248,5 +289,14 @@ router.post("/:id/publish", requireAuth, requireRole("staff", "admin"), async (r
     connection.release();
   }
 });
+
+function productStatusToUiStatus(row) {
+  if (!row.product_id) return "";
+  if (row.sell_status === "sold") return "sold";
+  if (row.sell_status === "expired") return "expired";
+  if (["on_sale", "reserved", "waiting_list"].includes(row.sell_status)) return "listed";
+  if (row.sell_status === "unlisted") return "returned";
+  return "";
+}
 
 export default router;

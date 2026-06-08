@@ -1,23 +1,16 @@
-import {
-  BarChart3,
-  Bell,
-  BriefcaseBusiness,
+﻿import {
   CalendarDays,
-  ChevronDown,
   ClipboardCheck,
-  ClipboardList,
   Clock3,
-  Home,
   PackageCheck,
   Search,
-  Settings,
-  ShieldQuestion,
   Tag,
-  UsersRound,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api, clearSession, formatMoney, getCurrentUser } from "../lib/api.js";
+import StaffHeader from "../components/StaffHeader.jsx";
+import StaffSidebar from "../components/StaffSidebar.jsx";
+import { api, formatMoney, getCurrentUser } from "../lib/api.js";
 
 const heroImage =
   "https://images.unsplash.com/photo-1523381294911-8d3cead13475?auto=format&fit=crop&w=1200&q=85";
@@ -29,6 +22,7 @@ const statusLabels = {
   inspecting: "Cần định giá",
   priced: "Chờ người bán xác nhận",
   seller_confirmed: "Chờ đăng bán",
+  seller_cancelled: "Đã hủy ký gửi",
   listed: "Đang đăng bán",
   rejected: "Từ chối",
   sold: "Đã bán",
@@ -43,20 +37,13 @@ const statusStyles = {
   inspecting: "bg-[#fff1dc] text-[#a96620]",
   priced: "bg-[#efeafd] text-[#6a51a3]",
   seller_confirmed: "bg-[#e8f6ed] text-[#3a7a4f]",
+  seller_cancelled: "bg-[#ffe9e6] text-[#b23b32]",
   listed: "bg-[#e8f3ff] text-[#326ea1]",
   rejected: "bg-[#ffe9e6] text-[#b23b32]",
   sold: "bg-[#e8f6ed] text-[#3a7a4f]",
   expired: "bg-[#f0ede8] text-[#6c6258]",
   returned: "bg-[#f0ede8] text-[#6c6258]",
 };
-
-const navItems = [
-  { label: "Tổng quan", icon: Home, href: "/staff" },
-  { label: "Yêu cầu ký gửi", icon: ClipboardList, href: "/staff", active: true },
-  { label: "Sản phẩm đăng bán", icon: BriefcaseBusiness, href: "/staff/products" },
-  { label: "Khách hàng", icon: UsersRound, href: "/staff" },
-  { label: "Báo cáo", icon: BarChart3, href: "/staff" },
-];
 
 export default function StaffPage() {
   const navigate = useNavigate();
@@ -67,7 +54,6 @@ export default function StaffPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [query, setQuery] = useState("");
   const [message, setMessage] = useState("");
-  const [accountOpen, setAccountOpen] = useState(false);
 
   const isStaff = ["staff", "admin"].includes(user?.role);
 
@@ -180,79 +166,10 @@ export default function StaffPage() {
 
   return (
     <main className="min-h-screen bg-[#fbf7f2] text-[#211914]">
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[280px] border-r border-[#eadfd4] bg-[#fffaf5] lg:flex lg:flex-col">
-        <div className="flex h-20 items-center border-b border-[#eadfd4] px-8">
-          <Link to="/" className="font-display text-3xl font-bold">The Heirloom</Link>
-        </div>
-
-        <nav className="flex-1 space-y-2 px-6 py-8">
-          {navItems.map((item) => (
-            <Link
-              key={item.label}
-              to={item.href}
-              className={
-                item.active
-                  ? "flex h-12 w-full items-center gap-4 rounded-md bg-[#f2e4d8] px-4 text-left text-sm font-bold text-[#8a572f]"
-                  : "flex h-12 w-full items-center gap-4 rounded-md px-4 text-left text-sm font-semibold text-[#786a5f] hover:bg-[#f7efe8]"
-              }
-            >
-              <item.icon size={18} />
-              {item.label}
-              {item.active && <span className="ml-auto h-2 w-2 rounded-full bg-[#b98255]" />}
-            </Link>
-          ))}
-        </nav>
-
-        <div className="border-t border-[#eadfd4] px-6 py-6">
-          <button className="flex h-11 w-full items-center gap-4 rounded-md px-4 text-left text-sm font-semibold text-[#786a5f] hover:bg-[#f7efe8]">
-            <ShieldQuestion size={18} />
-            Hướng dẫn sử dụng
-          </button>
-          <button className="flex h-11 w-full items-center gap-4 rounded-md px-4 text-left text-sm font-semibold text-[#786a5f] hover:bg-[#f7efe8]">
-            <Settings size={18} />
-            Cài đặt hệ thống
-          </button>
-        </div>
-      </aside>
+      <StaffSidebar active="consignments" />
 
       <section className="min-w-0 lg:pl-[280px]">
-        <header className="relative z-50 flex h-20 items-center justify-between border-b border-[#eadfd4] bg-[#fffaf5]/90 px-6 backdrop-blur lg:px-9">
-          <div className="flex items-center gap-6">
-            <span className="hidden h-9 w-px bg-[#eadfd4] lg:block" />
-            <p className="text-sm font-semibold text-[#6e6258]">Hệ thống nội bộ</p>
-          </div>
-          <div className="relative flex items-center gap-5">
-            <button className="relative grid h-10 w-10 place-items-center rounded-full hover:bg-[#f2e8df]">
-              <Bell size={18} />
-              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-clay" />
-            </button>
-            <img
-              className="h-11 w-11 rounded-full object-cover"
-              src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80"
-              alt={user.full_name}
-            />
-            <button className="flex items-center gap-3 text-right" onClick={() => setAccountOpen((open) => !open)}>
-              <div className="hidden sm:block">
-                <p className="text-sm font-bold">{user.full_name || user.name}</p>
-                <p className="text-xs text-[#7c6e62]">{user.role === "admin" ? "Quản trị viên" : "Chuyên viên kiểm định"}</p>
-              </div>
-              <ChevronDown size={17} className={accountOpen ? "rotate-180 transition" : "transition"} />
-            </button>
-            {accountOpen && (
-              <div className="absolute right-0 top-full z-[80] mt-2 w-48 rounded-md border border-[#eadfd4] bg-white p-2 shadow-soft">
-                <button
-                  className="h-10 w-full rounded-md px-3 text-left text-sm font-bold text-red-600 hover:bg-red-50"
-                  onClick={() => {
-                    clearSession();
-                    window.location.assign("/login");
-                  }}
-                >
-                  Đăng xuất
-                </button>
-              </div>
-            )}
-          </div>
-        </header>
+        <StaffHeader user={user} />
 
         <section className="relative overflow-hidden border-b border-[#eadfd4] bg-[#f8efe7]">
           <div className="relative grid min-h-[320px] gap-8 px-6 py-14 lg:grid-cols-[minmax(0,1fr)_460px] lg:px-16 xl:grid-cols-[minmax(0,1fr)_560px]">

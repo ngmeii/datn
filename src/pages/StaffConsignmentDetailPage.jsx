@@ -1,4 +1,4 @@
-import {
+﻿import {
   ArrowLeft,
   BriefcaseBusiness,
   CheckCircle2,
@@ -20,6 +20,7 @@ const statusLabels = {
   inspecting: "Cần định giá",
   priced: "Chờ người bán xác nhận",
   seller_confirmed: "Chờ đăng bán",
+  seller_cancelled: "Đã hủy ký gửi",
   listed: "Đang đăng bán",
   rejected: "Từ chối",
   sold: "Đã bán",
@@ -117,7 +118,7 @@ export default function StaffConsignmentDetailPage() {
                   <p className="flex items-center gap-2"><ClipboardList size={16} /> THK{String(item.id).padStart(6, "0")}</p>
                 </div>
                 <div className="mt-6 rounded-md bg-[#fbf7f2] p-4 text-sm leading-7 text-[#6d6057]">
-                  “{item.condition_note || "Khách hàng gửi sản phẩm cần kiểm định và định giá."}”
+                  "{item.condition_note || "Khách hàng gửi sản phẩm cần kiểm định và định giá."}"
                 </div>
               </article>
 

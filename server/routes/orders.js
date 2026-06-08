@@ -17,6 +17,11 @@ const createSchema = z.object({
   voucherCode: z.string().optional().default(""),
 });
 
+const quoteSchema = createSchema.pick({
+  items: true,
+  voucherCode: true,
+});
+
 const uiToOrderStatus = {
   pending_payment: "waiting_payment",
   pending_confirmation: "waiting_confirm",
@@ -69,37 +74,38 @@ router.get("/", requireAuth, async (req, res, next) => {
   }
 });
 
+router.post("/quote", async (req, res, next) => {
+  const connection = await pool.getConnection();
+  try {
+    const data = quoteSchema.parse(req.body);
+    const quote = await buildOrderQuote(connection, data);
+    const { productById: _productById, ...publicQuote } = quote;
+    return res.json(publicQuote);
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
+    return next(error);
+  } finally {
+    connection.release();
+  }
+});
+
 router.post("/", requireAuth, async (req, res, next) => {
   const connection = await pool.getConnection();
   try {
     const data = createSchema.parse(req.body);
     await connection.beginTransaction();
 
-    const productIds = data.items.map((item) => item.productId);
-    const [products] = await connection.query(
-      `SELECT product_id, final_price, sell_status, commission_rate
-       FROM products
-       WHERE product_id IN (?)
-       FOR UPDATE`,
-      [productIds],
-    );
-
-    if (products.length !== productIds.length || products.some((product) => product.sell_status !== "on_sale")) {
-      await connection.rollback();
-      return res.status(409).json({ message: "Mot so san pham khong con san sang de dat hang." });
-    }
-
-    const productById = new Map(products.map((product) => [product.product_id, product]));
-    const subtotal = data.items.reduce((sum, item) => sum + Number(productById.get(item.productId).final_price) * item.quantity, 0);
-    const shippingFee = subtotal >= 400000 ? 0 : 30000;
-    const total = subtotal + shippingFee;
+    const quote = await buildOrderQuote(connection, data, { lockProducts: true });
+    const productById = quote.productById;
     const orderStatus = data.paymentMethod === "cod" ? "waiting_confirm" : "waiting_payment";
 
     const [orderResult] = await connection.execute(
       `INSERT INTO orders
        (buyer_id, receiver_name, receiver_phone, shipping_province, shipping_district, shipping_ward, shipping_street, subtotal_amount, shipping_fee, discount_amount, total_amount, payment_method, payment_status, order_status, created_at, updated_at)
-       VALUES (?, ?, ?, '', '', '', ?, ?, ?, 0, ?, ?, 'unpaid', ?, NOW(), NOW())`,
-      [req.user.id, "Khach hang", "", data.shippingAddress, subtotal, shippingFee, total, data.paymentMethod, orderStatus],
+       VALUES (?, ?, ?, '', '', '', ?, ?, ?, ?, ?, ?, 'unpaid', ?, NOW(), NOW())`,
+      [req.user.id, "Khach hang", "", data.shippingAddress, quote.subtotal, quote.shippingFee, quote.discountAmount, quote.total, data.paymentMethod, orderStatus],
     );
 
     for (const item of data.items) {
@@ -116,13 +122,18 @@ router.post("/", requireAuth, async (req, res, next) => {
     return res.status(201).json({
       id: orderResult.insertId,
       status: orderToUiStatus[orderStatus],
-      subtotal,
-      shippingFee,
-      total,
+      subtotal: quote.subtotal,
+      shippingFee: quote.shippingFee,
+      discountAmount: quote.discountAmount,
+      total: quote.total,
+      voucher: quote.voucher,
       message: "Da tao don hang.",
     });
   } catch (error) {
     await connection.rollback();
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
     return next(error);
   } finally {
     connection.release();
@@ -213,5 +224,89 @@ router.post("/:id/payout", requireAuth, requireRole("staff", "admin"), async (re
     connection.release();
   }
 });
+
+async function buildOrderQuote(connection, data, options = {}) {
+  const productIds = [...new Set(data.items.map((item) => item.productId))];
+  const lockClause = options.lockProducts ? " FOR UPDATE" : "";
+  const [products] = await connection.query(
+    `SELECT product_id, final_price, sell_status, commission_rate
+     FROM products
+     WHERE product_id IN (?)${lockClause}`,
+    [productIds],
+  );
+
+  if (products.length !== productIds.length || products.some((product) => product.sell_status !== "on_sale")) {
+    throw httpError(409, "Mot so san pham khong con san sang de dat hang.");
+  }
+
+  const productById = new Map(products.map((product) => [product.product_id, product]));
+  const subtotal = data.items.reduce((sum, item) => {
+    const product = productById.get(item.productId);
+    return sum + Number(product.final_price) * item.quantity;
+  }, 0);
+  const shippingFee = subtotal >= 400000 ? 0 : 30000;
+  const voucher = await resolveVoucher(connection, data.voucherCode, subtotal);
+  const discountAmount = voucher ? calculateDiscount(subtotal, voucher) : 0;
+  const total = Math.max(0, subtotal - discountAmount) + shippingFee;
+
+  return {
+    subtotal,
+    shippingFee,
+    discountAmount,
+    discountedSubtotal: Math.max(0, subtotal - discountAmount),
+    total,
+    voucher: voucher ? {
+      code: voucher.code,
+      discountType: voucher.discount_type,
+      discountValue: Number(voucher.discount_value),
+    } : null,
+    productById,
+  };
+}
+
+async function resolveVoucher(connection, voucherCode, subtotal) {
+  const code = String(voucherCode || "").trim().toUpperCase();
+  if (!code) return null;
+
+  const [vouchers] = await connection.execute(
+    `SELECT voucher_id,
+            code,
+            discount_type,
+            discount_value,
+            min_order_value
+     FROM vouchers
+     WHERE code = ?
+       AND status = 'active'
+       AND start_date <= NOW()
+       AND end_date >= NOW()
+     LIMIT 1`,
+    [code],
+  );
+
+  const voucher = vouchers[0];
+  if (!voucher) {
+    throw httpError(400, "Ma voucher khong hop le hoac da het han.");
+  }
+
+  if (subtotal < Number(voucher.min_order_value || 0)) {
+    throw httpError(400, `Don hang chua dat gia tri toi thieu ${Number(voucher.min_order_value).toLocaleString("vi-VN")}d de dung voucher.`);
+  }
+
+  return voucher;
+}
+
+function calculateDiscount(subtotal, voucher) {
+  const discountValue = Number(voucher.discount_value || 0);
+  const rawDiscount = voucher.discount_type === "percent"
+    ? Math.round((subtotal * discountValue) / 100)
+    : discountValue;
+  return Math.min(subtotal, Math.max(0, rawDiscount));
+}
+
+function httpError(status, message) {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+}
 
 export default router;
