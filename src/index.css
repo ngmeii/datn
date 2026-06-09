@@ -90,18 +90,66 @@ textarea {
   background-color: #f2e2d5;
 }
 
+.bg-\[\#f8eee5\],
+.bg-\[\#fff8f5\],
+.bg-\[\#fcf9f6\],
+.bg-\[\#fcfaf8\],
+.bg-\[\#fffaf6\] {
+  background-color: #fcf5ef;
+}
+
+.bg-\[\#f3e4d4\],
+.bg-\[\#f2e4d8\],
+.bg-\[\#f1e3d6\],
+.bg-\[\#eee0d4\],
+.bg-\[\#eadac9\],
+.bg-\[\#f4e6d8\] {
+  background-color: #ead9ca;
+}
+
 .text-\[\#7c6e62\],
 .text-\[\#9b9088\],
 .text-\[\#9a9089\],
 .text-\[\#a3978e\],
 .text-\[\#a29489\],
-.text-\[\#aaa098\] {
+.text-\[\#aaa098\],
+.text-\[\#887d75\],
+.text-\[\#81746b\],
+.text-\[\#84776e\],
+.text-\[\#71665f\],
+.text-\[\#62584f\],
+.text-\[\#6f625a\] {
   color: #76665c;
 }
 
 .text-\[\#685d56\],
-.text-\[\#6d6057\] {
+.text-\[\#6d6057\],
+.text-\[\#5f554d\],
+.text-\[\#594b43\],
+.text-\[\#594a40\],
+.text-\[\#4a3e36\],
+.text-\[\#35281f\],
+.text-\[\#34271f\],
+.text-\[\#30241e\],
+.text-\[\#2f251f\],
+.text-\[\#2e211a\] {
   color: #594b43;
+}
+
+.text-\[\#755744\],
+.text-\[\#745847\],
+.text-\[\#7a4b2d\],
+.text-\[\#7b5336\],
+.text-\[\#8b654b\],
+.text-\[\#8a572f\],
+.text-\[\#8b5f3b\] {
+  color: #ad6a3e;
+}
+
+.border-\[\#e6d4c5\],
+.border-\[\#c48658\],
+.border-\[\#b9aca1\] {
+  border-color: #dccabd;
 }
 
 @layer components {

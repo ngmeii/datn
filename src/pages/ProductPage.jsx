@@ -1,19 +1,20 @@
 import { ChevronDown, Heart, Loader2, ShoppingBag } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api, formatMoney } from "../lib/api.js";
 import { addToCart } from "../lib/cart.js";
 
 export default function ProductPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const category = searchParams.get("category") || "";
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [category, setCategory] = useState("");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([api(`/products?category=${category}`), api("/categories")])
+    Promise.all([api(`/products?category=${encodeURIComponent(category)}`), api("/categories")])
       .then(([productData, categoryData]) => {
         setProducts(productData);
         setCategories(categoryData);
@@ -26,14 +27,21 @@ export default function ProductPage() {
     setMessage(`Đã thêm "${product.name}" vào giỏ hàng.`);
   }
 
+  function updateCategory(nextCategory) {
+    const nextParams = new URLSearchParams(searchParams);
+    if (nextCategory) {
+      nextParams.set("category", nextCategory);
+    } else {
+      nextParams.delete("category");
+    }
+    setSearchParams(nextParams);
+  }
+
   return (
     <main>
       <section className="border-b border-black/10 bg-[#f8efe7] py-16">
         <div className="site-container">
-          <h1 className="font-display text-5xl font-bold">Sản phẩm ký gửi</h1>
-          <p className="mt-5 max-w-2xl text-lg leading-8 text-ink/65">
-            Danh sách sản phẩm đã qua kiểm định, có mô tả tình trạng rõ ràng và giá bán minh bạch.
-          </p>
+          <h1 className="font-display text-5xl font-bold">Danh sách sản phẩm</h1>
         </div>
       </section>
 
@@ -42,15 +50,15 @@ export default function ProductPage() {
           <div className="flex flex-wrap gap-3">
             <button
               className={!category ? "rounded-full bg-ink px-5 py-3 text-sm font-bold text-white" : "rounded-full bg-white px-5 py-3 text-sm font-bold"}
-              onClick={() => setCategory("")}
+              onClick={() => updateCategory("")}
             >
               Tất cả
             </button>
             {categories.map((item) => (
               <button
                 key={item.id}
-                className={category === item.slug ? "rounded-full bg-ink px-5 py-3 text-sm font-bold text-white" : "rounded-full bg-white px-5 py-3 text-sm font-bold"}
-                onClick={() => setCategory(item.slug)}
+                className={[item.slug, String(item.id), item.name].includes(category) ? "rounded-full bg-ink px-5 py-3 text-sm font-bold text-white" : "rounded-full bg-white px-5 py-3 text-sm font-bold"}
+                onClick={() => updateCategory(item.slug)}
               >
                 {item.name}
               </button>

@@ -94,7 +94,6 @@ export default function DashboardPage({ staffOnly = false }) {
         <div>
           <p className="text-sm font-bold uppercase text-clay">{isStaff ? "Trang nhân viên/admin" : "Tài khoản"}</p>
           <h1 className="mt-3 font-display text-5xl font-bold">Xin chào, {user.name || user.full_name}</h1>
-          <p className="mt-3 text-ink/60">Vai trò: {user.role}</p>
         </div>
         {!isStaff && (
           <Link to="/consign" className="rounded-full bg-ink px-6 py-3 text-sm font-bold text-white">

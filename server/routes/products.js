@@ -24,7 +24,7 @@ router.get("/", async (req, res, next) => {
        FROM products p
        LEFT JOIN categories c ON c.category_id = p.category_id
        WHERE (:status = '' OR (:status = 'available' AND p.sell_status = 'on_sale'))
-         AND (:category = '' OR p.category_id = :category)
+         AND (:category = '' OR CAST(p.category_id AS CHAR) = :category OR c.name = :category)
          AND (:q = '' OR p.product_name LIKE CONCAT('%', :q, '%') OR p.brand LIKE CONCAT('%', :q, '%'))
        ORDER BY p.created_at DESC`,
       { q, category, status },

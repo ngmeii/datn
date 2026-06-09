@@ -1,4 +1,4 @@
-﻿import {
+import {
   ArrowLeft,
   BriefcaseBusiness,
   CheckCircle2,
@@ -11,6 +11,8 @@
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import StaffHeader from "../components/StaffHeader.jsx";
+import StaffSidebar from "../components/StaffSidebar.jsx";
 import { api, formatMoney, getCurrentUser } from "../lib/api.js";
 
 const statusLabels = {
@@ -89,8 +91,18 @@ export default function StaffConsignmentDetailPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#fbf7f2] px-6 py-10 text-[#211914] lg:px-12">
-      <div className="mx-auto max-w-[1500px]">
+    <main className="min-h-screen bg-cream text-ink">
+      <StaffSidebar active="consignments" />
+
+      <section className="min-w-0 lg:pl-[244px]">
+        <StaffHeader
+          user={user}
+          roleLabel={user.role === "admin" ? "Quản trị hệ thống" : "Nhân viên vận hành"}
+          title="Chi tiết ký gửi"
+          searchPlaceholder="Tìm kiếm yêu cầu ký gửi..."
+        />
+
+        <div className="px-6 py-8 lg:px-8 xl:px-10">
         <Link to="/staff" className="inline-flex items-center gap-2 text-sm font-bold text-[#7c6e62] hover:text-ink">
           <ArrowLeft size={17} /> Quay lại danh sách yêu cầu
         </Link>
@@ -171,7 +183,8 @@ export default function StaffConsignmentDetailPage() {
             <h1 className="font-display text-4xl font-bold">Không tìm thấy yêu cầu ký gửi</h1>
           </section>
         )}
-      </div>
+        </div>
+      </section>
     </main>
   );
 }

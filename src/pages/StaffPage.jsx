@@ -1,4 +1,4 @@
-﻿import {
+import {
   CalendarDays,
   ClipboardCheck,
   Clock3,
@@ -31,18 +31,18 @@ const statusLabels = {
 };
 
 const statusStyles = {
-  pending_review: "bg-[#fff1dc] text-[#a96620]",
-  approved: "bg-[#eaf4ff] text-[#2f6b9f]",
-  received: "bg-[#fff1dc] text-[#a96620]",
-  inspecting: "bg-[#fff1dc] text-[#a96620]",
-  priced: "bg-[#efeafd] text-[#6a51a3]",
-  seller_confirmed: "bg-[#e8f6ed] text-[#3a7a4f]",
-  seller_cancelled: "bg-[#ffe9e6] text-[#b23b32]",
-  listed: "bg-[#e8f3ff] text-[#326ea1]",
-  rejected: "bg-[#ffe9e6] text-[#b23b32]",
-  sold: "bg-[#e8f6ed] text-[#3a7a4f]",
-  expired: "bg-[#f0ede8] text-[#6c6258]",
-  returned: "bg-[#f0ede8] text-[#6c6258]",
+  pending_review: "bg-warning/10 text-warning",
+  approved: "bg-info/10 text-info",
+  received: "bg-warning/10 text-warning",
+  inspecting: "bg-info/10 text-info",
+  priced: "bg-info/10 text-info",
+  seller_confirmed: "bg-success/10 text-success",
+  seller_cancelled: "bg-danger/10 text-danger",
+  listed: "bg-success/10 text-success",
+  rejected: "bg-danger/10 text-danger",
+  sold: "bg-success/10 text-success",
+  expired: "bg-warning/10 text-warning",
+  returned: "bg-muted/10 text-muted",
 };
 
 export default function StaffPage() {
@@ -165,13 +165,19 @@ export default function StaffPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#fbf7f2] text-[#211914]">
+    <main className="min-h-screen bg-cream text-ink">
       <StaffSidebar active="consignments" />
 
-      <section className="min-w-0 lg:pl-[280px]">
-        <StaffHeader user={user} />
+      <section className="min-w-0 lg:pl-[244px]">
+        <StaffHeader
+          user={user}
+          title="Yêu cầu ký gửi"
+          query={query}
+          setQuery={setQuery}
+          searchPlaceholder="Tìm mã đơn, khách hàng, sản phẩm..."
+        />
 
-        <section className="relative overflow-hidden border-b border-[#eadfd4] bg-[#f8efe7]">
+        <section className="relative overflow-hidden border-b border-border bg-sidebar">
           <div className="relative grid min-h-[320px] gap-8 px-6 py-14 lg:grid-cols-[minmax(0,1fr)_460px] lg:px-16 xl:grid-cols-[minmax(0,1fr)_560px]">
             <div className="relative z-10 max-w-3xl">
               <h1 className="font-display text-5xl font-bold leading-tight md:text-6xl">Quản lý ký gửi</h1>
@@ -179,9 +185,10 @@ export default function StaffPage() {
                 Các trạng thái của quy trình ký gửi được quản lý trực tiếp trong bảng bên dưới: chờ duyệt, chờ tiếp nhận, cần định giá, chờ người bán xác nhận và chờ đăng bán.
               </p>
             </div>
-            <div className="relative hidden min-h-[240px] overflow-hidden rounded-l-[3rem] lg:block">
-              <img src={heroImage} alt="Khu vực vận hành ký gửi" className="absolute inset-0 h-full w-full object-cover object-center" />
-              <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-[#f8efe7] to-transparent" />
+            <div className="relative hidden min-h-[240px] overflow-hidden rounded-l-[3rem] border border-border bg-linen/40 lg:block">
+              <img src={heroImage} alt="Khu vực vận hành ký gửi" className="absolute inset-0 h-full w-full object-cover object-center opacity-90 saturate-[0.82]" />
+              <div className="absolute inset-0 bg-linen/15" />
+              <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-sidebar to-transparent" />
             </div>
           </div>
         </section>
@@ -191,7 +198,7 @@ export default function StaffPage() {
             {stats.map((stat) => (
               <article key={stat.label} className="rounded-md border border-[#eadfd4] p-6">
                 <div className="flex items-start gap-4">
-                  <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-[#f8efe7] text-clay">
+                  <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-sidebar text-clay">
                     <stat.icon size={25} />
                   </span>
                   <div className="min-w-0">

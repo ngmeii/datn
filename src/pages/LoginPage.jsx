@@ -37,7 +37,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="grid min-h-screen bg-[#fff8f5] text-ink lg:grid-cols-2">
+    <main className="grid min-h-screen bg-cream text-ink lg:grid-cols-2">
       <section className="relative hidden min-h-screen overflow-hidden lg:block">
         <img src={loginImage} alt="Không gian thời trang ký gửi" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/5 to-black/45" />

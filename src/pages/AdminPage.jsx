@@ -1,15 +1,9 @@
 import {
   BarChart3,
-  Bell,
-  ChevronDown,
-  ChevronRight,
   Download,
   FileBarChart,
-  Home,
   Loader2,
-  LogOut,
   Plus,
-  Search,
   ShoppingBag,
   Tag,
   TicketPercent,
@@ -18,9 +12,11 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import StaffHeader from "../components/StaffHeader.jsx";
+import StaffSidebar from "../components/StaffSidebar.jsx";
 import adminHero from "../images/admin-hero.png";
-import { api, clearSession, formatMoney, getCurrentUser } from "../lib/api.js";
+import { api, formatMoney, getCurrentUser } from "../lib/api.js";
 
 const categoryImages = [
   "https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=520&q=85",
@@ -28,14 +24,6 @@ const categoryImages = [
   "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=520&q=85",
   "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&w=520&q=85",
   "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=520&q=85",
-];
-
-const navItems = [
-  { label: "Tổng quan", icon: Home, href: "#top", active: true },
-  { label: "Quản lý tài khoản", icon: Users, href: "#accounts" },
-  { label: "Danh mục sản phẩm", icon: Tag, href: "#categories" },
-  { label: "Voucher", icon: TicketPercent, href: "#vouchers" },
-  { label: "Báo cáo thống kê", icon: BarChart3, href: "#reports" },
 ];
 
 const roleLabels = {
@@ -61,7 +49,6 @@ export default function AdminPage() {
   const navigate = useNavigate();
   const user = getCurrentUser();
   const [overview, setOverview] = useState(null);
-  const [accountOpen, setAccountOpen] = useState(false);
   const [modal, setModal] = useState("");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -139,16 +126,17 @@ export default function AdminPage() {
   }
 
   return (
-    <main id="top" className="min-h-screen bg-[#fdfbf9] text-[#35281f]">
-      <AdminSidebar />
+    <main id="top" className="min-h-screen bg-cream text-ink">
+      <StaffSidebar active="overview" desk="admin" />
 
       <section className="min-w-0 lg:pl-[244px]">
-        <AdminHeader
-          accountOpen={accountOpen}
-          setAccountOpen={setAccountOpen}
-          userName={user?.full_name || user?.name || "Admin"}
+        <StaffHeader
+          user={user}
+          roleLabel="Quản trị hệ thống"
+          title="Tổng quan"
           query={query}
           setQuery={setQuery}
+          searchPlaceholder="Tìm tài khoản, danh mục, voucher..."
         />
 
         <section className="relative min-h-[228px] overflow-hidden border-b border-[#eadfd5]">
@@ -262,99 +250,11 @@ export default function AdminPage() {
   );
 }
 
-function AdminSidebar() {
-  return (
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-[244px] border-r border-[#eadfd5] bg-[#fdfaf7] lg:flex lg:flex-col">
-      <div className="px-8 pb-5 pt-7">
-        <Link to="/" className="font-display text-[25px] font-semibold text-[#2d211b]">The Heirloom</Link>
-        <p className="mt-0.5 text-[9px] tracking-[0.35em] text-[#9e8d81]">ADMIN</p>
-      </div>
-      <nav className="space-y-2 px-3 py-2">
-        {navItems.map((item) => (
-          <a
-            key={item.label}
-            href={item.href}
-            className={
-              item.active
-                ? "flex h-12 w-full items-center gap-4 rounded-lg bg-[#f4e6d8] px-4 text-sm font-medium text-[#5f4b3e]"
-                : "flex h-12 w-full items-center gap-4 rounded-lg px-4 text-sm text-[#655950] transition hover:bg-[#f8f0e9]"
-            }
-          >
-            <item.icon size={18} strokeWidth={1.7} />
-            {item.label}
-          </a>
-        ))}
-      </nav>
-      <div className="mx-5 mt-2 border-t border-[#eadfd5]" />
-      <button
-        className="mx-3 mt-3 flex h-12 items-center gap-4 rounded-lg px-4 text-sm text-[#655950] hover:bg-[#f8f0e9]"
-        onClick={() => {
-          clearSession();
-          window.location.assign("/login");
-        }}
-      >
-        <LogOut size={18} strokeWidth={1.7} />
-        Đăng xuất
-      </button>
-      <div className="mt-auto px-8 pb-8 text-[10px] leading-5 text-[#9b9088]">
-        <p>© 2024 The Heirloom</p>
-        <p>Admin Dashboard</p>
-      </div>
-    </aside>
-  );
-}
-
-function AdminHeader({ accountOpen, setAccountOpen, userName, query, setQuery }) {
-  return (
-    <header className="relative z-30 flex h-[72px] items-center border-b border-[#eadfd5] bg-white/95 px-5 sm:px-7">
-      <div className="hidden items-center gap-3 text-xs text-[#71665f] sm:flex">
-        <Home size={16} />
-        <ChevronRight size={14} />
-        <span>Tổng quan</span>
-      </div>
-      <label className="ml-auto hidden h-10 w-72 items-center gap-3 rounded-lg border border-[#eee5de] px-4 text-xs text-[#a29489] md:flex">
-        <input value={query} onChange={(event) => setQuery(event.target.value)} className="min-w-0 flex-1 bg-transparent outline-none" placeholder="Tìm tài khoản, danh mục, voucher..." />
-        <Search size={16} className="text-[#99745a]" />
-      </label>
-      <span className="relative ml-auto grid h-10 w-10 place-items-center text-[#765f50] md:ml-5" title="Chưa có thông báo mới">
-        <Bell size={18} strokeWidth={1.6} />
-      </span>
-      <div className="ml-4 h-8 w-px bg-[#eadfd5]" />
-      <img
-        className="ml-4 h-10 w-10 rounded-full object-cover"
-        src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=160&q=85"
-        alt=""
-      />
-      <button className="ml-3 flex items-center gap-5 text-left" onClick={() => setAccountOpen((open) => !open)}>
-        <span className="hidden sm:block">
-          <span className="block text-xs font-semibold text-[#45372f]">{userName}</span>
-          <span className="mt-1 block text-[10px] text-[#958880]">Quản trị hệ thống</span>
-        </span>
-        <ChevronDown size={15} className={accountOpen ? "rotate-180 transition" : "transition"} />
-      </button>
-      {accountOpen && (
-        <div className="absolute right-5 top-[62px] w-44 rounded-md border border-[#eadfd5] bg-white p-2 shadow-lg">
-          <button
-            className="flex h-9 w-full items-center gap-2 rounded px-3 text-left text-xs text-[#745847] hover:bg-[#fcf7f2]"
-            onClick={() => {
-              clearSession();
-              window.location.assign("/login");
-            }}
-          >
-            <LogOut size={14} />
-            Đăng xuất
-          </button>
-        </div>
-      )}
-    </header>
-  );
-}
-
 function MetricCard({ label, value, delta, note, icon: Icon }) {
   return (
     <article className="rounded-xl border border-[#eee5de] bg-white p-5">
       <div className="flex items-start gap-4">
-        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fbf2e8] text-[#bd7f4e]">
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-linen/50 text-clay">
           <Icon size={21} strokeWidth={1.65} />
         </span>
         <div className="min-w-0">
@@ -362,7 +262,7 @@ function MetricCard({ label, value, delta, note, icon: Icon }) {
           <p className="mt-1 whitespace-nowrap font-display text-[27px] leading-none text-[#2f251f]">{value}</p>
         </div>
       </div>
-      <p className="mt-4 text-[10px] text-[#9a9089]"><span className="font-semibold text-[#56a47d]">+{formatCount(delta)}</span> {note}</p>
+      <p className="mt-4 text-[10px] text-muted"><span className="font-semibold text-success">+{formatCount(delta)}</span> {note}</p>
     </article>
   );
 }
@@ -384,21 +284,21 @@ function DashboardSection({ id, title, action, onAction, children }) {
 
 function RoleBadge({ role }) {
   const styles = {
-    Admin: "bg-[#f3e4d4] text-[#8a5c38]",
-    "Nhân viên": "bg-[#e4edf3] text-[#55758d]",
-    "Khách hàng": "bg-[#ece9e6] text-[#6a615b]",
+    Admin: "bg-linen/60 text-clay",
+    "Nhân viên": "bg-info/10 text-info",
+    "Khách hàng": "bg-muted/10 text-muted",
   };
   return <span className={`rounded px-2 py-1 text-[10px] font-semibold ${styles[role]}`}>{role}</span>;
 }
 
 function StatusBadge({ status }) {
   const styles = {
-    "Hoạt động": "bg-[#e2eee7] text-[#4e8064]",
-    "Đang hoạt động": "bg-[#e2eee7] text-[#4e8064]",
-    "Tạm khóa": "bg-[#f7e8d8] text-[#b16e38]",
-    "Sắp hết hạn": "bg-[#f7e8d8] text-[#b16e38]",
-    "Hết hạn": "bg-[#f5e0df] text-[#b75d59]",
-    "Đã khóa": "bg-[#f5e0df] text-[#b75d59]",
+    "Hoạt động": "bg-success/10 text-success",
+    "Đang hoạt động": "bg-success/10 text-success",
+    "Tạm khóa": "bg-warning/10 text-warning",
+    "Sắp hết hạn": "bg-warning/10 text-warning",
+    "Hết hạn": "bg-danger/10 text-danger",
+    "Đã khóa": "bg-danger/10 text-danger",
   };
   return <span className={`rounded px-2 py-1 text-[10px] font-semibold ${styles[status]}`}>{status}</span>;
 }
@@ -462,8 +362,8 @@ function LineChart({ data = [] }) {
     <svg viewBox="0 0 320 135" className="h-full w-full" aria-label="Biểu đồ doanh thu">
       {[18, 53, 88, 123].map((y) => <line key={y} x1="40" x2="314" y1={y} y2={y} stroke="#eee7e1" strokeWidth="1" />)}
       {area && <polygon points={area} fill="#f8eee4" />}
-      {line && <polyline points={line} fill="none" stroke="#bf7b3b" strokeWidth="2" />}
-      {points.map((point) => <circle key={point.date} cx={point.x} cy={point.y} r="2.5" fill="#bf7b3b" />)}
+      {line && <polyline points={line} fill="none" stroke="#ad6a3e" strokeWidth="2" />}
+      {points.map((point) => <circle key={point.date} cx={point.x} cy={point.y} r="2.5" fill="#ad6a3e" />)}
       <ChartLabels data={data} />
     </svg>
   );
@@ -478,7 +378,7 @@ function BarChart({ data = [] }) {
       {data.map((item, index) => {
         const height = (Number(item.value || 0) / max) * 100;
         const x = 40 + index * (270 / Math.max(1, data.length));
-        return <rect key={item.date} x={x} y={123 - height} width={barWidth} height={height} fill="#c58243" />;
+        return <rect key={item.date} x={x} y={123 - height} width={barWidth} height={height} fill="#ad6a3e" />;
       })}
       <ChartLabels data={data} />
     </svg>
@@ -495,13 +395,13 @@ function DonutChart({ customers = {} }) {
     <div className="flex h-full items-center justify-center gap-7">
       <div
         className="relative h-[118px] w-[118px] shrink-0 rounded-full"
-        style={{ background: `conic-gradient(#d29b68 0 ${newPercent}%, #edd2b5 ${newPercent}% 100%)` }}
+        style={{ background: `conic-gradient(#ad6a3e 0 ${newPercent}%, #ead9ca ${newPercent}% 100%)` }}
       >
         <div className="absolute inset-[19px] rounded-full bg-white" />
       </div>
       <div className="space-y-3 text-[10px] text-[#81746b]">
-        <p><span className="mr-2 inline-block h-2 w-2 rounded-sm bg-[#d29b68]" />Khách hàng mới&nbsp;&nbsp; {newCount} ({newPercent}%)</p>
-        <p><span className="mr-2 inline-block h-2 w-2 rounded-sm bg-[#edd2b5]" />Khách hàng cũ&nbsp;&nbsp; {existingCount} ({existingPercent}%)</p>
+        <p><span className="mr-2 inline-block h-2 w-2 rounded-sm bg-clay" />Khách hàng mới&nbsp;&nbsp; {newCount} ({newPercent}%)</p>
+        <p><span className="mr-2 inline-block h-2 w-2 rounded-sm bg-linen" />Khách hàng cũ&nbsp;&nbsp; {existingCount} ({existingPercent}%)</p>
       </div>
     </div>
   );
@@ -515,7 +415,7 @@ function QuickActions({ onAction }) {
         {quickActions.map((action) => (
           <article key={action.title} className="rounded-lg border border-[#eee5de] p-4">
             <div className="flex gap-4">
-              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#fbf2e8] text-[#bd7f4e]">
+              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-linen/50 text-clay">
                 <action.icon size={23} strokeWidth={1.6} />
               </span>
               <div>
@@ -523,7 +423,7 @@ function QuickActions({ onAction }) {
                 <p className="mt-1 text-[10px] leading-4 text-[#9b9088]">{action.detail}</p>
               </div>
             </div>
-            <button onClick={() => onAction(action.type)} className="mt-4 h-8 w-full rounded-lg border border-[#ead9ca] bg-[#fbf1e6] text-[11px] text-[#8d674d]">{action.button}</button>
+            <button onClick={() => onAction(action.type)} className="mt-4 h-8 w-full rounded-lg border border-linen bg-sidebar text-[11px] text-clay">{action.button}</button>
           </article>
         ))}
       </div>
@@ -551,7 +451,7 @@ function ResourceModal({ type, onClose, onSubmit }) {
 
   return (
     <div className="fixed inset-0 z-[100] grid place-items-center bg-black/35 px-4 py-8">
-      <section className="w-full max-w-lg rounded-xl border border-[#dccabd] bg-white p-5 shadow-soft">
+      <section className="w-full max-w-lg rounded-xl border border-border bg-white p-5 shadow-soft">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-2xl font-semibold">{config.title}</h2>
           <button onClick={onClose} className="grid h-9 w-9 place-items-center rounded-full hover:bg-[#f7eee7]"><X size={17} /></button>
@@ -598,7 +498,7 @@ function FormField({ label, ...props }) {
   return (
     <label>
       <span className="text-xs font-semibold text-[#594b43]">{label}</span>
-      <input {...props} className="mt-2 h-10 w-full rounded-md border border-[#dccabd] px-3 text-sm outline-none focus:border-[#ad6a3e]" />
+      <input {...props} className="mt-2 h-10 w-full rounded-md border border-border px-3 text-sm outline-none focus:border-clay" />
     </label>
   );
 }
@@ -607,7 +507,7 @@ function FormSelect({ label, children, ...props }) {
   return (
     <label>
       <span className="text-xs font-semibold text-[#594b43]">{label}</span>
-      <select {...props} className="mt-2 h-10 w-full rounded-md border border-[#dccabd] bg-white px-3 text-sm outline-none focus:border-[#ad6a3e]">
+      <select {...props} className="mt-2 h-10 w-full rounded-md border border-border bg-white px-3 text-sm outline-none focus:border-clay">
         {children}
       </select>
     </label>

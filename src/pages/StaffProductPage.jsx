@@ -16,7 +16,7 @@ import StaffHeader from "../components/StaffHeader.jsx";
 import StaffSidebar from "../components/StaffSidebar.jsx";
 import { api, formatMoney, getCurrentUser } from "../lib/api.js";
 
-const heroImage = "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=1300&q=90";
+const heroImage = "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?auto=format&fit=crop&w=1300&q=90";
 const fallbackImage = "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?auto=format&fit=crop&w=700&q=85";
 
 const statusLabels = {
@@ -28,11 +28,11 @@ const statusLabels = {
 };
 
 const statusStyles = {
-  on_sale: "bg-[#e8f6ed] text-[#3a7a4f]",
-  reserved: "bg-[#eaf4ff] text-[#2f6b9f]",
-  sold: "bg-[#efeafd] text-[#6a51a3]",
-  expired: "bg-[#fff1dc] text-[#a96620]",
-  returned: "bg-[#eceae8] text-[#635d58]",
+  on_sale: "bg-success/10 text-success",
+  reserved: "bg-info/10 text-info",
+  sold: "bg-success/10 text-success",
+  expired: "bg-warning/10 text-warning",
+  returned: "bg-muted/10 text-muted",
 };
 
 export default function StaffProductPage() {
@@ -79,13 +79,20 @@ export default function StaffProductPage() {
   if (!isStaff) return <AccessDenied />;
 
   return (
-    <main className="min-h-screen bg-[#fbf7f2] text-[#211914]">
+    <main className="min-h-screen bg-cream text-ink">
       <StaffSidebar active="products" />
 
-      <section className="min-w-0 lg:pl-[280px]">
-        <StaffHeader user={user} roleLabel={user.role === "admin" ? "Quản trị viên" : "Chuyên viên kiểm định"} />
+      <section className="min-w-0 lg:pl-[244px]">
+        <StaffHeader
+          user={user}
+          roleLabel={user.role === "admin" ? "Quản trị hệ thống" : "Chuyên viên kiểm định"}
+          title="Sản phẩm đăng bán"
+          query={query}
+          setQuery={setQuery}
+          searchPlaceholder="Tìm tên sản phẩm, mã SP, thương hiệu..."
+        />
 
-        <section className="relative overflow-hidden border-b border-[#eadfd4] bg-[#f8efe7]">
+        <section className="relative overflow-hidden border-b border-border bg-sidebar">
           <div className="relative grid min-h-[320px] gap-8 px-6 py-14 lg:grid-cols-[minmax(0,1fr)_460px] lg:px-16 xl:grid-cols-[minmax(0,1fr)_560px]">
             <div className="relative z-10 max-w-3xl">
               <h1 className="font-display text-5xl font-bold leading-tight md:text-6xl">Sản phẩm đăng bán</h1>
@@ -93,9 +100,10 @@ export default function StaffProductPage() {
                 Theo dõi, quản lý và tối ưu các sản phẩm đang hiển thị để tăng hiệu quả bán hàng. Cập nhật thông tin, giá bán, trạng thái và chiến dịch một cách dễ dàng.
               </p>
             </div>
-            <div className="relative hidden min-h-[240px] overflow-hidden rounded-l-[3rem] lg:block">
-              <img src={heroImage} alt="Sản phẩm đăng bán" className="absolute inset-0 h-full w-full object-cover object-center" />
-              <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-[#f8efe7] to-transparent" />
+            <div className="relative hidden min-h-[240px] overflow-hidden rounded-l-[3rem] border border-border bg-linen/40 lg:block">
+              <img src={heroImage} alt="Sản phẩm đăng bán" className="absolute inset-0 h-full w-full object-cover object-center opacity-90 saturate-[0.82]" />
+              <div className="absolute inset-0 bg-linen/15" />
+              <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-sidebar to-transparent" />
             </div>
           </div>
         </section>
@@ -134,7 +142,7 @@ function Metric({ icon: Icon, label, value, suffix, delta }) {
   return (
     <article className="rounded-md border border-[#eadfd4] p-6">
       <div className="flex items-start gap-4">
-        <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-[#f8efe7] text-clay"><Icon size={25} /></span>
+        <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-sidebar text-clay"><Icon size={25} /></span>
         <div className="min-w-0">
           <p className="text-sm font-bold text-[#6d6057]">{label}</p>
           <p className="mt-2 whitespace-nowrap font-display text-4xl font-bold xl:text-5xl">
@@ -167,7 +175,7 @@ function Select({ label, value, onChange, children }) {
 function ProductTable({ products, onOpenProduct }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[1060px] table-fixed text-left text-sm">
+      <table className="w-full min-w-[1220px] table-fixed text-left text-sm">
         <colgroup>
           <col className="w-[52px]" />
           <col className="w-[112px]" />
@@ -175,7 +183,8 @@ function ProductTable({ products, onOpenProduct }) {
           <col className="w-[120px]" />
           <col className="w-[125px]" />
           <col className="w-[105px]" />
-          <col className="w-[165px]" />
+          <col className="w-[105px]" />
+          <col className="w-[175px]" />
           <col className="w-[130px]" />
           <col className="w-[80px]" />
         </colgroup>
@@ -189,7 +198,7 @@ function ProductTable({ products, onOpenProduct }) {
             <th className="px-4 py-4">Giá bán</th>
             <th className="px-4 py-4">Lượt xem</th>
             <th className="px-4 py-4 text-center">Trạng thái</th>
-            <th className="px-4 py-4">Ngày đăng</th>
+            <th className="px-4 py-4 text-center">Ngày đăng</th>
             <th className="px-4 py-4 text-center">Thao tác</th>
           </tr>
         </thead>
@@ -204,8 +213,8 @@ function ProductTable({ products, onOpenProduct }) {
                 <td className="px-4 py-4">{product.category_name}</td><td className="px-4 py-4">{product.brand || "Chưa rõ"}</td>
                 <td className="px-4 py-4 whitespace-nowrap font-semibold">{formatMoney(product.price)}</td>
                 <td className="px-4 py-4">{views.toLocaleString("vi-VN")}</td>
-                <td className="px-4 py-4 text-center"><span className={`inline-flex min-w-[128px] justify-center whitespace-nowrap rounded-md px-4 py-2 font-bold ${statusStyles[product.status] || statusStyles.returned}`}>{statusLabels[product.status] || product.status}</span></td>
-                <td className="px-4 py-4 whitespace-nowrap">{formatDate(product.listed_at)}</td><td className="px-4 py-4 text-center"><MoreHorizontal className="mx-auto" size={17} /></td>
+                <td className="px-4 py-4 text-center"><span className={`inline-flex min-w-[140px] justify-center whitespace-nowrap rounded-md px-4 py-2 font-bold ${statusStyles[product.status] || statusStyles.returned}`}>{statusLabels[product.status] || product.status}</span></td>
+                <td className="px-4 py-4 text-center whitespace-nowrap">{formatDate(product.listed_at)}</td><td className="px-4 py-4 text-center"><MoreHorizontal className="mx-auto" size={17} /></td>
               </tr>
             );
           })}
@@ -222,7 +231,7 @@ function Pagination({ count, total }) {
 
 function ProductImage({ src, alt, ...props }) { return <img src={src || fallbackImage} alt={alt} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = fallbackImage; }} {...props} />; }
 
-function AccessDenied() { return <main className="grid min-h-screen place-items-center bg-[#fbf6f1]"><div className="text-center"><h1 className="font-display text-5xl font-bold">Không có quyền truy cập</h1><Link to="/" className="mt-7 inline-block rounded-full bg-ink px-6 py-3 text-sm font-bold text-white">Về trang chủ</Link></div></main>; }
+function AccessDenied() { return <main className="grid min-h-screen place-items-center bg-cream"><div className="text-center"><h1 className="font-display text-5xl font-bold">Không có quyền truy cập</h1><Link to="/" className="mt-7 inline-block rounded-full bg-ink px-6 py-3 text-sm font-bold text-white">Về trang chủ</Link></div></main>; }
 function formatDate(value) { return value ? new Intl.DateTimeFormat("vi-VN").format(new Date(value)) : "Chưa cập nhật"; }
 function daysUntil(value) { return value ? Math.ceil((new Date(value).getTime() - Date.now()) / 86400000) : Infinity; }
 function getAnalytics(product) { return { views: 468 + ((product.id * 137) % 820) }; }

@@ -60,11 +60,7 @@ export default function ConsignPage() {
     <main>
       <section className="bg-[#f8efe7] py-16">
         <div className="site-container">
-          <p className="text-sm font-bold uppercase text-clay">Quy trình ký gửi</p>
-          <h1 className="mt-3 font-display text-5xl font-bold">Tạo yêu cầu ký gửi sản phẩm</h1>
-          <p className="mt-5 max-w-2xl text-lg leading-8 text-ink/65">
-            Người bán gửi thông tin sản phẩm, hệ thống ước lượng giá và nhân viên sẽ kiểm duyệt trước khi tiếp nhận.
-          </p>
+          <h1 className="font-display text-5xl font-bold">Tạo yêu cầu ký gửi sản phẩm</h1>
         </div>
       </section>
 

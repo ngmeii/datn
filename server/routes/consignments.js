@@ -230,7 +230,16 @@ router.post("/:id/publish", requireAuth, requireRole("staff", "admin"), async (r
     await connection.beginTransaction();
 
     const [items] = await connection.execute(
-      `SELECT ci.*, cr.seller_id, p.product_id
+      `SELECT ci.consignment_item_id,
+              ci.category_id,
+              ci.product_name,
+              ci.brand,
+              ci.condition_level,
+              ci.description,
+              ci.images,
+              ci.seller_price,
+              cr.seller_id,
+              p.product_id AS existing_product_id
        FROM consignment_items ci
        JOIN consignment_requests cr ON cr.request_id = ci.request_id
        LEFT JOIN products p ON p.consignment_item_id = ci.consignment_item_id
@@ -247,15 +256,27 @@ router.post("/:id/publish", requireAuth, requireRole("staff", "admin"), async (r
       return res.status(409).json({ message: "Yeu cau ky gui chua duoc nguoi ban xac nhan." });
     }
 
-    if (item.product_id) {
-      await connection.rollback();
-      return res.status(409).json({ message: "Sản phẩm này đã được đăng bán." });
+    if (item.existing_product_id) {
+      await connection.execute(
+        `UPDATE consignment_requests cr
+         JOIN consignment_items ci ON ci.request_id = cr.request_id
+         SET cr.status = 'completed', cr.updated_at = NOW()
+         WHERE ci.consignment_item_id = ?`,
+        [item.consignment_item_id],
+      );
+      await connection.commit();
+
+      return res.json({
+        productId: item.existing_product_id,
+        message: "San pham nay da duoc dang ban.",
+      });
     }
 
     const [productResult] = await connection.execute(
       `INSERT INTO products
        (consignment_item_id, seller_id, category_id, product_name, brand, condition_level, description, images, final_price, commission_rate, display_status, sell_status, consign_start_date, consign_end_date, created_at, updated_at)
-       VALUES (?, ?, COALESCE(?, 1), ?, ?, ?, ?, ?, ?, 20, 'visible', 'on_sale', CURDATE(), DATE_ADD(CURDATE(), INTERVAL 45 DAY), NOW(), NOW())`,
+       VALUES (?, ?, COALESCE(?, 1), ?, ?, ?, ?, ?, ?, 20, 'visible', 'on_sale', CURDATE(), DATE_ADD(CURDATE(), INTERVAL 45 DAY), NOW(), NOW())
+       ON DUPLICATE KEY UPDATE product_id = LAST_INSERT_ID(product_id)`,
       [
         item.consignment_item_id,
         item.seller_id,
