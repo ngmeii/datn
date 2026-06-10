@@ -18,6 +18,7 @@ import { api, formatMoney, getCurrentUser } from "../lib/api.js";
 
 const heroImage = "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?auto=format&fit=crop&w=1300&q=90";
 const fallbackImage = "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?auto=format&fit=crop&w=700&q=85";
+const PAGE_SIZE = 20;
 
 const statusLabels = {
   on_sale: "Đang đăng bán",
@@ -44,6 +45,7 @@ export default function StaffProductPage() {
   const [category, setCategory] = useState("");
   const [status, setStatus] = useState("");
   const [brand, setBrand] = useState("");
+  const [page, setPage] = useState(1);
   const isStaff = ["staff", "admin"].includes(user?.role);
 
   useEffect(() => {
@@ -67,6 +69,14 @@ export default function StaffProductPage() {
       (!brand || product.brand === brand)
     ));
   }, [products, query, category, status, brand]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, category, status, brand]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const visibleProducts = filteredProducts.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const brands = [...new Set(products.map((product) => product.brand).filter(Boolean))];
   const expiringCount = products.filter((product) => {
@@ -93,14 +103,14 @@ export default function StaffProductPage() {
         />
 
         <section className="relative overflow-hidden border-b border-border bg-sidebar">
-          <div className="relative grid min-h-[320px] gap-8 px-6 py-14 lg:grid-cols-[minmax(0,1fr)_460px] lg:px-16 xl:grid-cols-[minmax(0,1fr)_560px]">
+          <div className="relative grid min-h-[220px] gap-6 px-6 py-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:px-12 xl:grid-cols-[minmax(0,1fr)_430px]">
             <div className="relative z-10 max-w-3xl">
-              <h1 className="font-display text-5xl font-bold leading-tight md:text-6xl">Sản phẩm đăng bán</h1>
-              <p className="mt-5 max-w-2xl text-sm leading-7 text-[#6d6057]">
+              <h1 className="font-display text-4xl font-bold leading-tight md:text-5xl">Sản phẩm đăng bán</h1>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-[#6d6057]">
                 Theo dõi, quản lý và tối ưu các sản phẩm đang hiển thị để tăng hiệu quả bán hàng. Cập nhật thông tin, giá bán, trạng thái và chiến dịch một cách dễ dàng.
               </p>
             </div>
-            <div className="relative hidden min-h-[240px] overflow-hidden rounded-l-[3rem] border border-border bg-linen/40 lg:block">
+            <div className="relative hidden min-h-[160px] overflow-hidden rounded-l-[2rem] border border-border bg-linen/40 lg:block">
               <img src={heroImage} alt="Sản phẩm đăng bán" className="absolute inset-0 h-full w-full object-cover object-center opacity-90 saturate-[0.82]" />
               <div className="absolute inset-0 bg-linen/15" />
               <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-sidebar to-transparent" />
@@ -129,8 +139,8 @@ export default function StaffProductPage() {
               setQuery={setQuery}
               setStatus={setStatus}
             />
-            <ProductTable products={filteredProducts} onOpenProduct={(productId) => navigate(`/staff/products/${productId}`)} />
-            <Pagination count={filteredProducts.length} total={products.length} />
+            <ProductTable products={visibleProducts} onOpenProduct={(productId) => navigate(`/staff/products/${productId}`)} />
+            <Pagination page={safePage} totalPages={totalPages} count={filteredProducts.length} total={products.length} onPageChange={setPage} />
           </section>
         </div>
       </section>
@@ -174,18 +184,15 @@ function Select({ label, value, onChange, children }) {
 
 function ProductTable({ products, onOpenProduct }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[1220px] table-fixed text-left text-sm">
+    <div className="overflow-hidden">
+      <table className="w-full table-fixed text-left text-sm">
         <colgroup>
-          <col className="w-[52px]" />
+          <col className="w-[48px]" />
           <col className="w-[112px]" />
-          <col className="w-[255px]" />
-          <col className="w-[120px]" />
-          <col className="w-[125px]" />
-          <col className="w-[105px]" />
-          <col className="w-[105px]" />
-          <col className="w-[175px]" />
+          <col />
           <col className="w-[130px]" />
+          <col className="w-[155px]" />
+          <col className="w-[125px]" />
           <col className="w-[80px]" />
         </colgroup>
         <thead className="border-b border-[#eadfd4] text-[#62584f]">
@@ -193,10 +200,7 @@ function ProductTable({ products, onOpenProduct }) {
             <th className="px-5 py-4"></th>
             <th className="px-4 py-4">Mã SP</th>
             <th className="px-4 py-4">Sản phẩm</th>
-            <th className="px-4 py-4">Danh mục</th>
-            <th className="px-4 py-4">Thương hiệu</th>
             <th className="px-4 py-4">Giá bán</th>
-            <th className="px-4 py-4">Lượt xem</th>
             <th className="px-4 py-4 text-center">Trạng thái</th>
             <th className="px-4 py-4 text-center">Ngày đăng</th>
             <th className="px-4 py-4 text-center">Thao tác</th>
@@ -204,16 +208,23 @@ function ProductTable({ products, onOpenProduct }) {
         </thead>
         <tbody>
           {products.map((product) => {
-            const { views } = getAnalytics(product);
             return (
               <tr key={product.id} onClick={() => onOpenProduct(product.id)} className="cursor-pointer border-b border-[#eadfd4] hover:bg-[#fffaf6]">
                 <td className="px-5 py-4"><span className="block h-4 w-4 rounded-full border border-[#b9aca1]" /></td>
                 <td className="px-4 py-4 font-semibold">TH{String(product.id).padStart(7, "0")}</td>
-                <td className="px-4 py-4"><div className="flex items-center gap-3"><ProductImage src={product.image_url} alt={product.name} className="h-14 w-14 shrink-0 rounded-md object-cover" /><span className="font-semibold leading-5">{product.name}</span></div></td>
-                <td className="px-4 py-4">{product.category_name}</td><td className="px-4 py-4">{product.brand || "Chưa rõ"}</td>
+                <td className="px-4 py-4">
+                  <div className="flex items-center gap-3">
+                    <ProductImage src={product.image_url} alt={product.name} className="h-14 w-14 shrink-0 rounded-md object-cover" />
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold leading-5">{product.name}</p>
+                      <p className="mt-1 truncate text-xs text-[#7c6e62]">
+                        {product.category_name || "Chưa phân loại"}{product.brand ? ` · ${product.brand}` : ""}
+                      </p>
+                    </div>
+                  </div>
+                </td>
                 <td className="px-4 py-4 whitespace-nowrap font-semibold">{formatMoney(product.price)}</td>
-                <td className="px-4 py-4">{views.toLocaleString("vi-VN")}</td>
-                <td className="px-4 py-4 text-center"><span className={`inline-flex min-w-[140px] justify-center whitespace-nowrap rounded-md px-4 py-2 font-bold ${statusStyles[product.status] || statusStyles.returned}`}>{statusLabels[product.status] || product.status}</span></td>
+                <td className="px-4 py-4 text-center"><span className={`inline-flex min-w-[118px] justify-center whitespace-nowrap rounded-md px-3 py-2 font-bold ${statusStyles[product.status] || statusStyles.returned}`}>{statusLabels[product.status] || product.status}</span></td>
                 <td className="px-4 py-4 text-center whitespace-nowrap">{formatDate(product.listed_at)}</td><td className="px-4 py-4 text-center"><MoreHorizontal className="mx-auto" size={17} /></td>
               </tr>
             );
@@ -224,9 +235,27 @@ function ProductTable({ products, onOpenProduct }) {
   );
 }
 
-function Pagination({ count, total }) {
-  const pages = Math.max(1, Math.ceil(total / 8));
-  return <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 text-xs text-[#7c6e62]"><span>Hiển thị 1 - {count} của {total} sản phẩm</span><div className="flex items-center gap-2"><button disabled className="grid h-8 w-8 place-items-center rounded-md border border-[#eadfd4] opacity-50"><ChevronLeft size={15} /></button>{Array.from({ length: pages }, (_, index) => index + 1).map((page) => <button key={page} className={page === 1 ? "h-8 w-8 rounded-md border border-[#c48658] bg-[#fff4ea] font-bold text-[#8a572f]" : "h-8 w-8 rounded-md border border-[#eadfd4]"}>{page}</button>)}<button disabled className="grid h-8 w-8 place-items-center rounded-md border border-[#eadfd4] opacity-50"><ChevronRight size={15} /></button></div></div>;
+function Pagination({ page, totalPages, count, total, onPageChange }) {
+  const start = count ? (page - 1) * PAGE_SIZE + 1 : 0;
+  const end = Math.min(page * PAGE_SIZE, count);
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 text-xs text-[#7c6e62]">
+      <span>Hiển thị {start} - {end} của {count} sản phẩm{count !== total ? ` (lọc từ ${total})` : ""}</span>
+      <div className="flex items-center gap-2">
+        <button disabled={page <= 1} onClick={() => onPageChange(page - 1)} className="grid h-8 w-8 place-items-center rounded-md border border-[#eadfd4] disabled:opacity-50"><ChevronLeft size={15} /></button>
+        {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => (
+          <button
+            key={pageNumber}
+            onClick={() => onPageChange(pageNumber)}
+            className={pageNumber === page ? "h-8 w-8 rounded-md border border-[#c48658] bg-[#fff4ea] font-bold text-[#8a572f]" : "h-8 w-8 rounded-md border border-[#eadfd4]"}
+          >
+            {pageNumber}
+          </button>
+        ))}
+        <button disabled={page >= totalPages} onClick={() => onPageChange(page + 1)} className="grid h-8 w-8 place-items-center rounded-md border border-[#eadfd4] disabled:opacity-50"><ChevronRight size={15} /></button>
+      </div>
+    </div>
+  );
 }
 
 function ProductImage({ src, alt, ...props }) { return <img src={src || fallbackImage} alt={alt} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = fallbackImage; }} {...props} />; }

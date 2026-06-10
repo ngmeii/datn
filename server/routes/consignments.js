@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import { actorFromRequest, logActivity } from "../activityLog.js";
 import { pool, query } from "../db.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 
@@ -64,7 +65,8 @@ router.get("/", requireAuth, async (req, res, next) => {
               ci.status AS item_status,
               p.product_id,
               p.sell_status,
-              ci.created_at
+              ci.created_at,
+              ci.updated_at
        FROM consignment_items ci
        JOIN consignment_requests cr ON cr.request_id = ci.request_id
        JOIN users u ON u.user_id = cr.seller_id
@@ -98,7 +100,7 @@ router.post("/", requireAuth, async (req, res, next) => {
       [req.user.id, sendMethodToDb(data.sendMethod), data.conditionNote],
     );
 
-    await connection.execute(
+    const [itemResult] = await connection.execute(
       `INSERT INTO consignment_items
        (request_id, category_id, product_name, brand, condition_level, description, estimated_price, images, status, created_at, updated_at)
        VALUES (?, ?, ?, ?, 'good', ?, ?, ?, 'pending', NOW(), NOW())`,
@@ -114,6 +116,14 @@ router.post("/", requireAuth, async (req, res, next) => {
     );
 
     await connection.commit();
+    await logActivity({
+      ...actorFromRequest(req),
+      entityType: "consignment",
+      entityId: itemResult.insertId,
+      action: "consignment_created",
+      message: `Đã tạo yêu cầu ký gửi #KG${String(itemResult.insertId).padStart(4, "0")}: ${data.productName}.`,
+      metadata: { requestId: requestResult.insertId, productName: data.productName },
+    });
 
     return res.status(201).json({
       id: requestResult.insertId,
@@ -158,6 +168,14 @@ router.patch("/:id/status", requireAuth, requireRole("staff", "admin"), async (r
       [mapped.request, data.staffNote, req.params.id],
     );
     await connection.commit();
+    await logActivity({
+      ...actorFromRequest(req),
+      entityType: "consignment",
+      entityId: Number(req.params.id),
+      action: `consignment_${data.status}`,
+      message: getConsignmentStatusActivityMessage(req.params.id, data.status, data.finalPrice),
+      metadata: { status: data.status, finalPrice: data.finalPrice ?? null },
+    });
 
     return res.json({ message: "Da cap nhat trang thai ky gui." });
   } catch (error) {
@@ -185,6 +203,14 @@ router.patch("/:id/confirm", requireAuth, async (req, res, next) => {
     if (!result.affectedRows) {
       return res.status(409).json({ message: "Yeu cau ky gui chua du dieu kien xac nhan." });
     }
+
+    await logActivity({
+      ...actorFromRequest(req),
+      entityType: "consignment",
+      entityId: Number(req.params.id),
+      action: "seller_confirmed",
+      message: `Người bán đã xác nhận ký gửi #KG${String(req.params.id).padStart(4, "0")}.`,
+    });
 
     return res.json({ message: "Da xac nhan ky gui sau dinh gia." });
   } catch (error) {
@@ -217,6 +243,15 @@ router.patch("/:id/cancel", requireAuth, async (req, res, next) => {
     if (!result.affectedRows) {
       return res.status(409).json({ message: "Yêu cầu ký gửi không còn ở trạng thái có thể hủy." });
     }
+
+    await logActivity({
+      ...actorFromRequest(req),
+      entityType: "consignment",
+      entityId: Number(req.params.id),
+      action: "seller_cancelled",
+      message: `Người bán đã hủy ký gửi #KG${String(req.params.id).padStart(4, "0")}.`,
+      metadata: { reason: req.body?.reason || "" },
+    });
 
     return res.json({ message: "Đã hủy ký gửi." });
   } catch (error) {
@@ -265,6 +300,14 @@ router.post("/:id/publish", requireAuth, requireRole("staff", "admin"), async (r
         [item.consignment_item_id],
       );
       await connection.commit();
+      await logActivity({
+        ...actorFromRequest(req),
+        entityType: "product",
+        entityId: item.existing_product_id,
+        action: "product_already_published",
+        message: `Sản phẩm #SP${String(item.existing_product_id).padStart(4, "0")} đã được đăng bán trước đó từ #KG${String(item.consignment_item_id).padStart(4, "0")}.`,
+        metadata: { consignmentItemId: item.consignment_item_id },
+      });
 
       return res.json({
         productId: item.existing_product_id,
@@ -298,6 +341,14 @@ router.post("/:id/publish", requireAuth, requireRole("staff", "admin"), async (r
       [item.consignment_item_id],
     );
     await connection.commit();
+    await logActivity({
+      ...actorFromRequest(req),
+      entityType: "product",
+      entityId: productResult.insertId,
+      action: "product_published",
+      message: `Đã đăng bán sản phẩm #SP${String(productResult.insertId).padStart(4, "0")} từ yêu cầu #KG${String(item.consignment_item_id).padStart(4, "0")}.`,
+      metadata: { consignmentItemId: item.consignment_item_id, productName: item.product_name },
+    });
 
     return res.status(201).json({
       productId: productResult.insertId,
@@ -318,6 +369,31 @@ function productStatusToUiStatus(row) {
   if (["on_sale", "reserved", "waiting_list"].includes(row.sell_status)) return "listed";
   if (row.sell_status === "unlisted") return "returned";
   return "";
+}
+
+function getConsignmentStatusActivityMessage(id, status, finalPrice) {
+  const code = `#KG${String(id).padStart(4, "0")}`;
+  const messages = {
+    approved: `Đã duyệt yêu cầu ký gửi ${code}.`,
+    rejected: `Đã từ chối yêu cầu ký gửi ${code}.`,
+    received: `Đã tiếp nhận sản phẩm ký gửi ${code}.`,
+    inspecting: `Đã chuyển yêu cầu ký gửi ${code} sang kiểm định.`,
+    priced: `Đã định giá yêu cầu ký gửi ${code}${finalPrice != null ? `: ${formatMoney(finalPrice)}` : ""}.`,
+    seller_confirmed: `Đã xác nhận người bán đồng ý ký gửi ${code}.`,
+    listed: `Đã chuyển yêu cầu ký gửi ${code} sang đang đăng bán.`,
+    sold: `Đã ghi nhận yêu cầu ký gửi ${code} đã bán.`,
+    expired: `Đã đánh dấu yêu cầu ký gửi ${code} hết hạn.`,
+    returned: `Đã hoàn trả yêu cầu ký gửi ${code}.`,
+  };
+  return messages[status] || `Đã cập nhật trạng thái yêu cầu ký gửi ${code}.`;
+}
+
+function formatMoney(value) {
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    maximumFractionDigits: 0,
+  }).format(Number(value || 0));
 }
 
 export default router;

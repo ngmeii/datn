@@ -9,7 +9,9 @@ import LoginPage from "./pages/LoginPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import ProductDetailPage from "./pages/ProductDetailPage.jsx";
 import ProductPage from "./pages/ProductPage.jsx";
+import StaffConsignmentPage from "./pages/StaffConsignmentPage.jsx";
 import StaffConsignmentDetailPage from "./pages/StaffConsignmentDetailPage.jsx";
+import StaffOrderPage from "./pages/StaffOrderPage.jsx";
 import StaffPage from "./pages/StaffPage.jsx";
 import StaffProductDetailPage from "./pages/StaffProductDetailPage.jsx";
 import StaffProductPage from "./pages/StaffProductPage.jsx";
@@ -21,7 +23,9 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/admin" element={<RequireAuth><AdminPage /></RequireAuth>} />
       <Route path="/staff" element={<RequireAuth><StaffPage /></RequireAuth>} />
+      <Route path="/staff/consignments" element={<RequireAuth><StaffConsignmentPage /></RequireAuth>} />
       <Route path="/staff/consignments/:id" element={<RequireAuth><StaffConsignmentDetailPage /></RequireAuth>} />
+      <Route path="/staff/orders" element={<RequireAuth><StaffOrderPage /></RequireAuth>} />
       <Route path="/staff/products" element={<RequireAuth><StaffProductPage /></RequireAuth>} />
       <Route path="/staff/products/:id" element={<RequireAuth><StaffProductDetailPage /></RequireAuth>} />
       <Route element={<Layout />}>

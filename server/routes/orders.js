@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import { actorFromRequest, logActivity } from "../activityLog.js";
 import { query, pool } from "../db.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 
@@ -119,6 +120,15 @@ router.post("/", requireAuth, async (req, res, next) => {
     }
 
     await connection.commit();
+    await logActivity({
+      ...actorFromRequest(req),
+      entityType: "order",
+      entityId: orderResult.insertId,
+      action: "order_created",
+      message: `Đã tạo đơn hàng #DH${String(orderResult.insertId).padStart(4, "0")} với tổng thanh toán ${formatMoney(quote.total)}.`,
+      metadata: { total: quote.total, status: orderToUiStatus[orderStatus] },
+    });
+
     return res.status(201).json({
       id: orderResult.insertId,
       status: orderToUiStatus[orderStatus],
@@ -168,6 +178,14 @@ router.patch("/:id/status", requireAuth, requireRole("staff", "admin"), async (r
         { id: req.params.id },
       );
     }
+    await logActivity({
+      ...actorFromRequest(req),
+      entityType: "order",
+      entityId: Number(req.params.id),
+      action: "order_status_updated",
+      message: `Đã cập nhật đơn hàng #DH${String(req.params.id).padStart(4, "0")} sang trạng thái ${getOrderStatusLabel(data.status)}.`,
+      metadata: { status: data.status, trackingCode: data.trackingCode || "" },
+    });
 
     return res.json({ message: "Da cap nhat trang thai don hang." });
   } catch (error) {
@@ -216,6 +234,14 @@ router.post("/:id/payout", requireAuth, requireRole("staff", "admin"), async (re
     }
 
     await connection.commit();
+    await logActivity({
+      ...actorFromRequest(req),
+      entityType: "order",
+      entityId: Number(req.params.id),
+      action: "order_payout_created",
+      message: `Đã giải ngân cho đơn hàng #DH${String(req.params.id).padStart(4, "0")}.`,
+    });
+
     return res.status(201).json({ message: "Da giai ngan cho nguoi ban." });
   } catch (error) {
     await connection.rollback();
@@ -307,6 +333,29 @@ function httpError(status, message) {
   const error = new Error(message);
   error.status = status;
   return error;
+}
+
+function getOrderStatusLabel(status) {
+  const labels = {
+    pending_payment: "chờ thanh toán",
+    pending_confirmation: "chờ xác nhận",
+    paid: "đã thanh toán",
+    confirmed: "đang xử lý",
+    shipping: "đang giao hàng",
+    completed: "hoàn thành",
+    cancelled: "đã hủy",
+    return_requested: "yêu cầu trả hàng",
+    refunded: "đã hoàn tiền",
+  };
+  return labels[status] || status;
+}
+
+function formatMoney(value) {
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    maximumFractionDigits: 0,
+  }).format(Number(value || 0));
 }
 
 export default router;

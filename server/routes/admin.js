@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { Router } from "express";
 import { z } from "zod";
+import { listActivityLogs } from "../activityLog.js";
 import { query } from "../db.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 
@@ -53,6 +54,15 @@ router.get("/summary", requireAuth, requireRole("staff", "admin"), async (_req, 
     `);
 
     return res.json({ summary, recentConsignments });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get("/activity", requireAuth, requireRole("staff", "admin"), async (req, res, next) => {
+  try {
+    const limit = Math.min(20, Math.max(1, Number(req.query.limit || 8)));
+    return res.json(await listActivityLogs(limit));
   } catch (error) {
     return next(error);
   }

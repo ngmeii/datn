@@ -1,10 +1,14 @@
 import {
+  Bell,
   CalendarDays,
   ClipboardCheck,
-  Clock3,
+  Eye,
   PackageCheck,
-  Search,
+  Pencil,
+  ShoppingCart,
   Tag,
+  Trash2,
+  WalletCards,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -12,37 +16,16 @@ import StaffHeader from "../components/StaffHeader.jsx";
 import StaffSidebar from "../components/StaffSidebar.jsx";
 import { api, formatMoney, getCurrentUser } from "../lib/api.js";
 
-const heroImage =
-  "https://images.unsplash.com/photo-1523381294911-8d3cead13475?auto=format&fit=crop&w=1200&q=85";
-
-const statusLabels = {
-  pending_review: "Chờ duyệt",
+const requestStatusLabels = {
+  pending_review: "Mới",
   approved: "Chờ tiếp nhận",
-  received: "Cần định giá",
-  inspecting: "Cần định giá",
-  priced: "Chờ người bán xác nhận",
+  received: "Chờ kiểm định",
+  inspecting: "Chờ kiểm định",
+  priced: "Chờ xác nhận",
   seller_confirmed: "Chờ đăng bán",
-  seller_cancelled: "Đã hủy ký gửi",
   listed: "Đang đăng bán",
   rejected: "Từ chối",
-  sold: "Đã bán",
-  expired: "Hết hạn",
-  returned: "Đã hoàn trả",
-};
-
-const statusStyles = {
-  pending_review: "bg-warning/10 text-warning",
-  approved: "bg-info/10 text-info",
-  received: "bg-warning/10 text-warning",
-  inspecting: "bg-info/10 text-info",
-  priced: "bg-info/10 text-info",
-  seller_confirmed: "bg-success/10 text-success",
-  seller_cancelled: "bg-danger/10 text-danger",
-  listed: "bg-success/10 text-success",
-  rejected: "bg-danger/10 text-danger",
-  sold: "bg-success/10 text-success",
-  expired: "bg-warning/10 text-warning",
-  returned: "bg-muted/10 text-muted",
+  seller_cancelled: "Đã hủy",
 };
 
 export default function StaffPage() {
@@ -50,24 +33,10 @@ export default function StaffPage() {
   const user = getCurrentUser();
   const [requests, setRequests] = useState([]);
   const [orders, setOrders] = useState([]);
-  const [summary, setSummary] = useState(null);
-  const [statusFilter, setStatusFilter] = useState("");
+  const [products, setProducts] = useState([]);
+  const [activities, setActivities] = useState([]);
   const [query, setQuery] = useState("");
-  const [message, setMessage] = useState("");
-
   const isStaff = ["staff", "admin"].includes(user?.role);
-
-  async function loadData() {
-    const [requestData, orderData, adminData] = await Promise.all([
-      api("/consignments").catch(() => []),
-      api("/orders").catch(() => []),
-      api("/admin/summary").catch(() => null),
-    ]);
-
-    setRequests(requestData);
-    setOrders(orderData);
-    setSummary(adminData?.summary || null);
-  }
 
   useEffect(() => {
     if (!user) {
@@ -76,264 +45,117 @@ export default function StaffPage() {
     }
     if (!isStaff) return;
 
-    loadData();
-
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") loadData();
-    };
-    const intervalId = window.setInterval(refreshWhenVisible, 5000);
-
-    window.addEventListener("focus", refreshWhenVisible);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-
-    return () => {
-      window.clearInterval(intervalId);
-      window.removeEventListener("focus", refreshWhenVisible);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-    };
+    Promise.all([
+      api("/consignments").catch(() => []),
+      api("/orders").catch(() => []),
+      api("/products?status=").catch(() => []),
+      api("/admin/activity?limit=8").catch(() => []),
+    ]).then(([requestData, orderData, productData, activityData]) => {
+      setRequests(requestData);
+      setOrders(orderData);
+      setProducts(productData);
+      setActivities(activityData);
+    });
   }, []);
 
-  const filteredRequests = useMemo(() => {
+  const overview = useMemo(() => {
+    const newRequests = requests.filter((item) => item.status === "pending_review");
+    const needInspection = requests.filter((item) => ["approved", "received", "inspecting"].includes(item.status));
+    const waitConfirmOrders = orders.filter((item) => ["pending_confirmation", "pending_payment"].includes(item.status));
+    const activeProducts = products.filter((item) => item.status === "on_sale");
+    const todayRevenue = orders
+      .filter((item) => item.status === "completed" || item.payment_status === "paid")
+      .reduce((sum, item) => sum + Number(item.total || 0), 0);
+
+    return {
+      newRequests: newRequests.length,
+      needInspection: needInspection.length,
+      newOrders: waitConfirmOrders.length || orders.length,
+      todayRevenue,
+      activeProducts: activeProducts.length,
+      waitConfirmOrders: waitConfirmOrders.length,
+      needUpdateOrders: orders.filter((item) => ["confirmed", "shipping"].includes(item.status)).length,
+      expiringProducts: products.filter((item) => {
+        const expiresAt = item.expires_at ? new Date(item.expires_at).getTime() : Infinity;
+        return expiresAt - Date.now() <= 7 * 86400000;
+      }).length,
+    };
+  }, [requests, orders, products]);
+
+  const latestRequests = useMemo(() => {
     const keyword = query.trim().toLowerCase();
-    return requests.filter((item) => {
-      const matchStatus = !statusFilter || item.status === statusFilter;
-      const matchKeyword =
-        !keyword ||
-        item.product_name?.toLowerCase().includes(keyword) ||
-        item.seller_name?.toLowerCase().includes(keyword) ||
-        String(item.id).includes(keyword);
-      return matchStatus && matchKeyword;
-    });
-  }, [requests, statusFilter, query]);
-
-  const stats = [
-    {
-      label: "Chờ duyệt",
-      value: requests.filter((item) => item.status === "pending_review").length,
-      suffix: "đơn",
-      icon: Clock3,
-      delta: "Yêu cầu mới từ người bán",
-    },
-    {
-      label: "Cần định giá",
-      value: requests.filter((item) => ["received", "inspecting"].includes(item.status)).length,
-      suffix: "đơn",
-      icon: ClipboardCheck,
-      delta: "Đã tiếp nhận, chờ định giá",
-    },
-    {
-      label: "Chờ đăng bán",
-      value: requests.filter((item) => item.status === "seller_confirmed").length,
-      suffix: "đơn",
-      icon: PackageCheck,
-      delta: "Người bán đã xác nhận",
-    },
-    {
-      label: "Đang đăng bán",
-      value: summary?.available_count ?? 0,
-      suffix: "sản phẩm",
-      icon: Tag,
-      delta: "Sản phẩm đang mở bán",
-    },
-  ];
-
-  async function runAction(action) {
-    setMessage("");
-    try {
-      const result = await action();
-      setMessage(result?.message || "Đã cập nhật dữ liệu.");
-      await loadData();
-    } catch (error) {
-      setMessage(error.message);
-    }
-  }
+    return requests
+      .filter((item) => !keyword || item.product_name?.toLowerCase().includes(keyword) || item.seller_name?.toLowerCase().includes(keyword) || String(item.id).includes(keyword))
+      .slice(0, 5);
+  }, [requests, query]);
 
   if (!user) return null;
+  if (!isStaff) return <AccessDenied />;
 
-  if (!isStaff) {
-    return (
-      <main className="grid min-h-screen place-items-center bg-[#fbf6f1] px-6 text-ink">
-        <div className="max-w-lg text-center">
-          <h1 className="font-display text-5xl font-bold">Không có quyền truy cập</h1>
-          <p className="mt-4 text-ink/60">Trang này chỉ dành cho nhân viên và admin.</p>
-          <Link to="/" className="mt-7 inline-block rounded-full bg-ink px-6 py-3 text-sm font-bold text-white">
-            Về trang chủ
-          </Link>
-        </div>
-      </main>
-    );
-  }
+  const kpis = [
+    { label: "Yêu cầu ký gửi mới", value: overview.newRequests, icon: ClipboardCheck, delta: "9,1% so với hôm qua" },
+    { label: "Sản phẩm chờ kiểm định", value: overview.needInspection, icon: Tag, delta: "5,6% so với hôm qua" },
+    { label: "Đơn hàng mới", value: overview.newOrders, icon: ShoppingCart, delta: "15,4% so với hôm qua" },
+    { label: "Doanh thu hôm nay (VND)", value: formatMoney(overview.todayRevenue), icon: WalletCards, delta: "12,7% so với hôm qua" },
+  ];
 
   return (
     <main className="min-h-screen bg-cream text-ink">
-      <StaffSidebar active="consignments" />
+      <StaffSidebar active="overview" />
 
       <section className="min-w-0 lg:pl-[244px]">
         <StaffHeader
           user={user}
-          title="Yêu cầu ký gửi"
+          title="Tổng quan"
           query={query}
           setQuery={setQuery}
-          searchPlaceholder="Tìm mã đơn, khách hàng, sản phẩm..."
+          searchPlaceholder="Tìm yêu cầu, đơn hàng, sản phẩm..."
         />
 
-        <section className="relative overflow-hidden border-b border-border bg-sidebar">
-          <div className="relative grid min-h-[320px] gap-8 px-6 py-14 lg:grid-cols-[minmax(0,1fr)_460px] lg:px-16 xl:grid-cols-[minmax(0,1fr)_560px]">
-            <div className="relative z-10 max-w-3xl">
-              <h1 className="font-display text-5xl font-bold leading-tight md:text-6xl">Quản lý ký gửi</h1>
-              <p className="mt-5 max-w-2xl text-sm leading-7 text-[#6d6057]">
-                Các trạng thái của quy trình ký gửi được quản lý trực tiếp trong bảng bên dưới: chờ duyệt, chờ tiếp nhận, cần định giá, chờ người bán xác nhận và chờ đăng bán.
-              </p>
+        <div className="px-6 py-7 lg:px-8 xl:px-10">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h1 className="font-display text-3xl font-bold leading-none">Tổng quan</h1>
+              <p className="mt-2 text-sm text-muted">Tổng quan hoạt động tại cửa hàng hôm nay.</p>
             </div>
-            <div className="relative hidden min-h-[240px] overflow-hidden rounded-l-[3rem] border border-border bg-linen/40 lg:block">
-              <img src={heroImage} alt="Khu vực vận hành ký gửi" className="absolute inset-0 h-full w-full object-cover object-center opacity-90 saturate-[0.82]" />
-              <div className="absolute inset-0 bg-linen/15" />
-              <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-sidebar to-transparent" />
-            </div>
+            <button className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-white px-4 text-sm font-semibold text-[#6d5f55] shadow-sm">
+              <CalendarDays size={17} className="text-clay" />
+              Hôm nay: {formatShortDate(new Date())}
+            </button>
           </div>
-        </section>
 
-        <div className="px-6 py-8 lg:px-8 xl:px-10">
-          <section className="grid gap-5 rounded-md border border-[#eadfd4] bg-white p-5 shadow-soft md:grid-cols-2 xl:grid-cols-4">
-            {stats.map((stat) => (
-              <article key={stat.label} className="rounded-md border border-[#eadfd4] p-6">
+          <section className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+            {kpis.map((item) => (
+              <article key={item.label} className="rounded-xl border border-border bg-white p-6 shadow-soft">
                 <div className="flex items-start gap-4">
-                  <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-sidebar text-clay">
-                    <stat.icon size={25} />
+                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-linen text-clay">
+                    <item.icon size={24} strokeWidth={1.7} />
                   </span>
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-[#6d6057]">{stat.label}</p>
-                    <p className="mt-2 whitespace-nowrap font-display text-4xl font-bold xl:text-5xl">
-                      {stat.value} <span className="font-sans text-sm font-semibold">{stat.suffix}</span>
-                    </p>
-                    <p className="mt-3 text-xs font-semibold text-clay">{stat.delta}</p>
+                  <div>
+                    <p className="text-xs font-bold text-[#6d6057]">{item.label}</p>
+                    <p className="mt-2 font-display text-3xl font-bold">{item.value}</p>
+                    <p className="mt-3 text-xs font-semibold text-success">▲ {item.delta}</p>
                   </div>
                 </div>
               </article>
             ))}
           </section>
 
-          {message && <p className="mt-6 rounded-md bg-[#f2e4d8] px-4 py-3 text-sm font-semibold text-[#7a4b2d]">{message}</p>}
+          <section className="mt-6 grid gap-5 xl:grid-cols-[1.25fr_0.85fr_0.75fr]">
+            <ChartCard title="Doanh thu 7 ngày qua (VND)" action="7 ngày qua">
+              <RevenueChart orders={orders} />
+            </ChartCard>
 
-          <section className="mt-8 rounded-md border border-[#eadfd4] bg-white shadow-soft">
-            <div className="grid gap-4 border-b border-[#eadfd4] p-5 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_1fr_1.6fr]">
-              <FilterSelect label="Trạng thái" value={statusFilter} onChange={setStatusFilter}>
-                <option value="">Tất cả trạng thái</option>
-                {Object.entries(statusLabels).map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </FilterSelect>
-              <FilterSelect label="Danh mục">
-                <option>Tất cả danh mục</option>
-              </FilterSelect>
-              <FilterSelect label="Thương hiệu">
-                <option>Tất cả thương hiệu</option>
-              </FilterSelect>
-              <label>
-                <span className="text-xs font-bold text-[#5f554d]">Ngày gửi</span>
-                <span className="mt-2 flex h-12 items-center gap-2 rounded-md border border-[#eadfd4] px-4 text-sm text-[#7c6e62]">
-                  Chọn khoảng ngày <CalendarDays className="ml-auto" size={16} />
-                </span>
-              </label>
-              <label>
-                <span className="text-xs font-bold text-[#5f554d]">Tìm kiếm</span>
-                <span className="mt-2 flex h-12 items-center gap-2 rounded-md border border-[#eadfd4] px-4">
-                  <input
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    className="min-w-0 flex-1 bg-transparent text-sm outline-none"
-                    placeholder="Nhập mã đơn, tên KH..."
-                  />
-                  <Search size={17} />
-                </span>
-              </label>
-            </div>
+            <ChartCard title="Đơn hàng theo trạng thái">
+              <OrderDonut orders={orders} />
+            </ChartCard>
 
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1080px] border-collapse text-left text-sm">
-                <thead>
-                  <tr className="border-b border-[#eadfd4] text-xs text-[#62584f]">
-                    <th className="w-14 px-5 py-4"></th>
-                    <th className="px-4 py-4">Mã đơn</th>
-                    <th className="px-4 py-4">Khách hàng</th>
-                    <th className="px-4 py-4">Sản phẩm</th>
-                    <th className="px-4 py-4">Danh mục</th>
-                    <th className="px-4 py-4">Thương hiệu</th>
-                    <th className="px-4 py-4">Giá đề xuất</th>
-                    <th className="px-4 py-4">Trạng thái</th>
-                    <th className="px-4 py-4">Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredRequests.map((item) => (
-                    <tr
-                      key={item.id}
-                      className="cursor-pointer border-b border-[#eadfd4] hover:bg-[#fffaf6]"
-                      onClick={() => navigate(`/staff/consignments/${item.id}`)}
-                    >
-                      <td className="px-5 py-4">
-                        <span className="block h-4 w-4 rounded-full border border-[#b9aca1]" />
-                      </td>
-                      <td className="px-4 py-4 font-bold">THK{String(item.id).padStart(6, "0")}</td>
-                      <td className="px-4 py-4">
-                        <p className="font-semibold">{item.seller_name || "Khách ký gửi"}</p>
-                        <p className="mt-1 text-xs text-[#7c6e62]">0901 234 567</p>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          <img src={getRequestImage(item)} alt={item.product_name} className="h-14 w-16 rounded-md object-cover" />
-                          <span className="font-semibold">{item.product_name}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">{item.category_name || "Thời trang"}</td>
-                      <td className="px-4 py-4">{item.brand || "Chưa rõ"}</td>
-                      <td className="px-4 py-4">
-                        <p>{formatMoney(item.expected_price)}</p>
-                        {item.final_price && <p className="mt-1 text-xs text-[#7c6e62]">{formatMoney(item.final_price)}</p>}
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className={`rounded-md px-3 py-2 text-xs font-bold ${statusStyles[item.status] || "bg-[#f0ede8] text-[#6c6258]"}`}>
-                          {statusLabels[item.status] || item.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4" onClick={(event) => event.stopPropagation()}>
-                        <RowActions item={item} runAction={runAction} navigate={navigate} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="flex items-center justify-between px-5 py-4 text-sm text-[#7c6e62]">
-              <span>Hiển thị 1-{filteredRequests.length} của {requests.length} yêu cầu</span>
-              <div className="flex gap-2">
-                {[1, 2, 3].map((page) => (
-                  <button key={page} className={page === 1 ? "h-9 w-9 rounded-md bg-[#f2e4d8] font-bold text-[#8a572f]" : "h-9 w-9 rounded-md border border-[#eadfd4]"}>
-                    {page}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <TaskPanel overview={overview} />
           </section>
 
-          <section className="mt-8 rounded-md border border-[#eadfd4] bg-white p-6 shadow-soft">
-            <h2 className="font-display text-3xl font-bold">Đơn hàng cần xử lý</h2>
-            <div className="mt-5 grid gap-4 xl:grid-cols-2">
-              {orders.slice(0, 6).map((order) => (
-                <div key={order.id} className="flex items-center justify-between gap-4 rounded-md border border-[#eadfd4] p-4">
-                  <div>
-                    <p className="font-bold">Đơn hàng #{order.id}</p>
-                    <p className="mt-1 text-sm text-[#7c6e62]">{order.buyer_name || order.payment_method}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold">{formatMoney(order.total)}</p>
-                    <p className="text-xs text-[#7c6e62]">{order.status}</p>
-                  </div>
-                </div>
-              ))}
-              {!orders.length && <p className="text-sm text-[#7c6e62]">Chưa có đơn hàng.</p>}
-            </div>
+          <section className="mt-6 grid gap-5 xl:grid-cols-[1.5fr_0.7fr]">
+            <NewRequestsTable requests={latestRequests} navigate={navigate} />
+            <ActivityPanel activities={activities} />
           </section>
         </div>
       </section>
@@ -341,64 +163,238 @@ export default function StaffPage() {
   );
 }
 
-function RowActions({ item, runAction, navigate }) {
-  if (item.status === "pending_review") {
-    return (
-      <div className="flex flex-wrap gap-2">
-        <SmallButton onClick={() => runAction(() => api(`/consignments/${item.id}/status`, { method: "PATCH", body: JSON.stringify({ status: "approved" }) }))}>Duyệt</SmallButton>
-        <SmallButton danger onClick={() => runAction(() => api(`/consignments/${item.id}/status`, { method: "PATCH", body: JSON.stringify({ status: "rejected" }) }))}>Từ chối</SmallButton>
+function ChartCard({ title, action, children }) {
+  return (
+    <section className="rounded-xl border border-border bg-white p-5 shadow-soft">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-display text-xl font-bold">{title}</h2>
+        {action && <button className="rounded-md border border-border px-3 py-2 text-xs font-semibold text-muted">{action}</button>}
       </div>
-    );
-  }
-
-  if (item.status === "approved") {
-    return <SmallButton onClick={() => runAction(() => api(`/consignments/${item.id}/status`, { method: "PATCH", body: JSON.stringify({ status: "received" }) }))}>Tiếp nhận</SmallButton>;
-  }
-
-  if (["received", "inspecting"].includes(item.status)) {
-    return <SmallButton onClick={() => navigate(`/staff/consignments/${item.id}`)}>Định giá</SmallButton>;
-  }
-
-  if (item.status === "seller_confirmed") {
-    return <SmallButton onClick={() => runAction(() => api(`/consignments/${item.id}/publish`, { method: "POST" }))}>Đăng bán</SmallButton>;
-  }
-
-  return <SmallButton onClick={() => navigate(`/staff/consignments/${item.id}`)}>Xem chi tiết</SmallButton>;
-}
-
-function FilterSelect({ label, value, onChange, children }) {
-  return (
-    <label>
-      <span className="text-xs font-bold text-[#5f554d]">{label}</span>
-      <select value={value} onChange={(event) => onChange?.(event.target.value)} className="mt-2 h-12 w-full rounded-md border border-[#eadfd4] bg-white px-4 text-sm outline-none">
-        {children}
-      </select>
-    </label>
+      <div className="mt-4 h-[245px]">{children}</div>
+    </section>
   );
 }
 
-function SmallButton({ children, danger, ...props }) {
+function RevenueChart({ orders }) {
+  const points = buildRevenueSeries(orders);
+  const max = Math.max(1, ...points.map((item) => item.value));
+  const coords = points.map((item, index) => ({
+    ...item,
+    x: 40 + index * (300 / Math.max(1, points.length - 1)),
+    y: 202 - (item.value / max) * 155,
+  }));
+  const line = coords.map((item) => `${item.x},${item.y}`).join(" ");
+  const area = `40,202 ${line} 340,202`;
+
   return (
-    <button className={danger ? "rounded-md border border-red-300 px-3 py-2 text-xs font-bold text-red-600" : "rounded-md bg-ink px-3 py-2 text-xs font-bold text-white"} {...props}>
-      {children}
-    </button>
+    <svg viewBox="0 0 360 230" className="h-full w-full">
+      {[45, 85, 125, 165, 202].map((y) => <line key={y} x1="38" x2="340" y1={y} y2={y} stroke="#eee4db" />)}
+      <polygon points={area} fill="#f4e5d3" opacity="0.78" />
+      <polyline points={line} fill="none" stroke="#ad6a3e" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+      {coords.map((item) => <circle key={item.label} cx={item.x} cy={item.y} r="4" fill="#ad6a3e" />)}
+      {coords.map((item, index) => index % 2 === 0 && <text key={item.label} x={item.x} y="222" textAnchor="middle" fontSize="10" fill="#76665c">{item.label}</text>)}
+    </svg>
   );
 }
 
+function OrderDonut({ orders }) {
+  const groups = [
+    ["Chờ xác nhận", orders.filter((item) => ["pending_confirmation", "pending_payment"].includes(item.status)).length, "#87632d"],
+    ["Đang xử lý", orders.filter((item) => item.status === "confirmed").length, "#e7bd78"],
+    ["Đang giao hàng", orders.filter((item) => item.status === "shipping").length, "#2f4b58"],
+    ["Hoàn thành", orders.filter((item) => item.status === "completed").length, "#527376"],
+    ["Đã hủy", orders.filter((item) => ["cancelled", "refunded"].includes(item.status)).length, "#a9b5aa"],
+  ];
+  const total = Math.max(orders.length, groups.reduce((sum, item) => sum + item[1], 0), 1);
+  let offset = 25;
 
-function getRequestImage(item) {
-  if (!item?.images) {
-    return "https://images.unsplash.com/photo-1594223274512-ad4803739b7c?auto=format&fit=crop&w=700&q=85";
-  }
+  return (
+    <div className="flex h-full items-center justify-center gap-7">
+      <div className="relative h-36 w-36">
+        <svg viewBox="0 0 44 44" className="-rotate-90">
+          {groups.map(([label, value, color]) => {
+            const size = (value / total) * 100;
+            const segment = <circle key={label} cx="22" cy="22" r="15.9" fill="none" stroke={color} strokeWidth="8" strokeDasharray={`${size} ${100 - size}`} strokeDashoffset={offset} />;
+            offset -= size;
+            return segment;
+          })}
+        </svg>
+        <div className="absolute inset-0 grid place-items-center text-center">
+          <div>
+            <p className="font-display text-3xl font-bold">{orders.length}</p>
+            <p className="text-xs text-muted">Tổng đơn</p>
+          </div>
+        </div>
+      </div>
+      <div className="space-y-3 text-xs">
+        {groups.map(([label, value, color]) => (
+          <p key={label} className="flex items-center gap-2 text-muted">
+            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
+            <span>{label}</span>
+            <span className="font-bold text-ink">{value}</span>
+          </p>
+        ))}
+      </div>
+    </div>
+  );
+}
 
-  if (Array.isArray(item.images)) {
-    return item.images[0] || "https://images.unsplash.com/photo-1594223274512-ad4803739b7c?auto=format&fit=crop&w=700&q=85";
-  }
+function TaskPanel({ overview }) {
+  const tasks = [
+    ["Yêu cầu ký gửi mới", overview.newRequests, ClipboardCheck],
+    ["Sản phẩm chờ kiểm định", overview.needInspection, Tag],
+    ["Đơn hàng chờ xác nhận", overview.waitConfirmOrders, ShoppingCart],
+    ["Đơn hàng cần cập nhật", overview.needUpdateOrders, WalletCards],
+    ["Sản phẩm sắp hết hạn ký gửi", overview.expiringProducts, Bell],
+  ];
 
-  try {
-    const parsed = JSON.parse(item.images);
-    return parsed[0] || "https://images.unsplash.com/photo-1594223274512-ad4803739b7c?auto=format&fit=crop&w=700&q=85";
-  } catch {
-    return "https://images.unsplash.com/photo-1594223274512-ad4803739b7c?auto=format&fit=crop&w=700&q=85";
-  }
+  return (
+    <section className="rounded-xl border border-border bg-white p-5 shadow-soft">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-xl font-bold">Công việc cần xử lý</h2>
+        <Link to="/staff/consignments" className="text-xs font-bold text-clay">Xem tất cả</Link>
+      </div>
+      <div className="mt-4 space-y-3">
+        {tasks.map(([label, value, Icon]) => (
+          <div key={label} className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-[#fffaf6]">
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-linen text-clay"><Icon size={17} /></span>
+            <span className="min-w-0 flex-1 text-sm font-semibold">{label}</span>
+            <span className="rounded-md bg-linen px-3 py-1 text-sm font-bold text-[#7a5537]">{value}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function NewRequestsTable({ requests, navigate }) {
+  return (
+    <section className="rounded-xl border border-border bg-white p-5 shadow-soft">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-xl font-bold">Yêu cầu ký gửi mới</h2>
+        <Link to="/staff/consignments" className="text-xs font-bold text-clay">Xem tất cả</Link>
+      </div>
+      <div className="mt-4 overflow-x-auto">
+        <table className="w-full min-w-[780px] table-fixed text-left text-sm">
+          <colgroup>
+            <col className="w-[110px]" />
+            <col className="w-[160px]" />
+            <col className="w-[180px]" />
+            <col className="w-[105px]" />
+            <col className="w-[140px]" />
+            <col className="w-[120px]" />
+          </colgroup>
+          <thead className="border-b border-border text-xs text-muted">
+            <tr>
+              <th className="px-3 py-3">Mã yêu cầu</th>
+              <th className="px-3 py-3">Người gửi</th>
+              <th className="px-3 py-3">Ngày gửi</th>
+              <th className="px-3 py-3">Số sản phẩm</th>
+              <th className="px-3 py-3 text-center">Trạng thái</th>
+              <th className="px-3 py-3 text-center">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            {requests.map((item) => (
+              <tr key={item.id} className="border-b border-border last:border-b-0">
+                <td className="px-3 py-3 font-bold">KG{String(item.id).padStart(4, "0")}</td>
+                <td className="px-3 py-3">{item.seller_name || "Khách ký gửi"}</td>
+                <td className="px-3 py-3">{formatDateTime(item.created_at)}</td>
+                <td className="px-3 py-3">1</td>
+                <td className="px-3 py-3 text-center"><span className="inline-flex min-w-[96px] justify-center whitespace-nowrap rounded-md bg-linen px-3 py-1 text-xs font-bold text-[#8a572f]">{requestStatusLabels[item.status] || item.status}</span></td>
+                <td className="px-3 py-3">
+                  <div className="flex justify-center gap-2">
+                    <IconButton icon={Eye} onClick={() => navigate(`/staff/consignments/${item.id}`)} />
+                    <IconButton icon={Pencil} onClick={() => navigate(`/staff/consignments/${item.id}`)} />
+                    <IconButton icon={Trash2} />
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {!requests.length && (
+              <tr>
+                <td colSpan="6" className="px-3 py-8 text-center text-muted">Chưa có yêu cầu ký gửi mới.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function ActivityPanel({ activities }) {
+  return (
+    <section className="rounded-xl border border-border bg-white p-5 shadow-soft">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-xl font-bold">Hoạt động gần đây</h2>
+        <span className="text-xs font-bold text-clay">Xem tất cả</span>
+      </div>
+      <div className="mt-4 space-y-4">
+        {activities.map((item, index) => (
+          <div key={item.id || `${item.message}-${index}`} className="flex gap-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-success/10 text-success">
+              <ActivityIcon item={item} />
+            </span>
+            <div>
+              <p className="text-sm font-semibold leading-5">{item.message}</p>
+              <p className="mt-1 text-xs text-muted">{formatRelative(item.created_at)}</p>
+            </div>
+          </div>
+        ))}
+        {!activities.length && <p className="text-sm text-muted">Chưa có hoạt động gần đây.</p>}
+      </div>
+    </section>
+  );
+}
+
+function ActivityIcon({ item }) {
+  if (item.entity_type === "product") return <PackageCheck size={16} />;
+  if (item.entity_type === "order") return <ShoppingCart size={16} />;
+  return <ClipboardCheck size={16} />;
+}
+
+function IconButton({ icon: Icon, ...props }) {
+  return <button className="grid h-8 w-8 place-items-center rounded-md border border-border text-muted hover:bg-linen hover:text-clay" {...props}><Icon size={15} /></button>;
+}
+
+function AccessDenied() {
+  return (
+    <main className="grid min-h-screen place-items-center bg-cream px-6 text-ink">
+      <div className="max-w-lg text-center">
+        <h1 className="font-display text-5xl font-bold">Không có quyền truy cập</h1>
+        <Link to="/" className="mt-7 inline-block rounded-full bg-ink px-6 py-3 text-sm font-bold text-white">Về trang chủ</Link>
+      </div>
+    </main>
+  );
+}
+
+function buildRevenueSeries(orders) {
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (6 - index));
+    const key = date.toISOString().slice(0, 10);
+    const value = orders
+      .filter((item) => String(item.created_at || "").slice(0, 10) === key)
+      .reduce((sum, item) => sum + Number(item.total || 0), 0);
+    return { label: formatShortDate(date).slice(0, 5), value };
+  });
+}
+
+function formatShortDate(value) {
+  return new Intl.DateTimeFormat("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(value));
+}
+
+function formatDateTime(value) {
+  if (!value) return "Chưa cập nhật";
+  return new Intl.DateTimeFormat("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
+}
+
+function formatRelative(value) {
+  if (!value) return "Vừa xong";
+  const minutes = Math.max(1, Math.round((Date.now() - new Date(value).getTime()) / 60000));
+  if (minutes < 60) return `${minutes} phút trước`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} giờ trước`;
+  return `${Math.round(hours / 24)} ngày trước`;
 }
