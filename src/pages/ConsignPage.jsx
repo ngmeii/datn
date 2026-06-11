@@ -1,7 +1,8 @@
 import { Loader2, PackagePlus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api, formatMoney, getCurrentUser } from "../lib/api.js";
+import ImageUploadField from "../components/ImageUploadField.jsx";
+import { api, formatMoney, getCurrentUser, uploadImage } from "../lib/api.js";
 
 export default function ConsignPage() {
   const navigate = useNavigate();
@@ -10,6 +11,7 @@ export default function ConsignPage() {
   const [estimate, setEstimate] = useState(0);
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
+  const [imageInputKey, setImageInputKey] = useState(0);
 
   useEffect(() => {
     api("/categories").then(setCategories);
@@ -34,20 +36,23 @@ export default function ConsignPage() {
     setLoading(true);
     setStatus("");
     const form = new FormData(formElement);
-    const payload = {
-      productName: form.get("productName"),
-      categoryId: Number(form.get("categoryId")),
-      brand: form.get("brand"),
-      conditionNote: form.get("conditionNote"),
-      expectedPrice: Number(form.get("expectedPrice")),
-      sendMethod: form.get("sendMethod"),
-      imageUrl: form.get("imageUrl"),
-    };
 
     try {
+      const imageFile = form.get("image");
+      const imageUrl = imageFile instanceof File && imageFile.size ? await uploadImage(imageFile) : "";
+      const payload = {
+        productName: form.get("productName"),
+        categoryId: Number(form.get("categoryId")),
+        brand: form.get("brand"),
+        conditionNote: form.get("conditionNote"),
+        expectedPrice: Number(form.get("expectedPrice")),
+        sendMethod: form.get("sendMethod"),
+        imageUrl,
+      };
       const result = await api("/consignments", { method: "POST", body: JSON.stringify(payload) });
       setStatus(result.message);
       formElement.reset();
+      setImageInputKey((value) => value + 1);
       setEstimate(0);
     } catch (error) {
       setStatus(error.message);
@@ -94,7 +99,7 @@ export default function ConsignPage() {
             <span className="text-sm font-semibold">Mô tả tình trạng</span>
             <textarea name="conditionNote" required rows="4" className="mt-2 w-full rounded-md border border-black/10 px-4 py-3" placeholder="Ví dụ: còn 90%, có xước nhẹ ở khóa..." />
           </label>
-          <Field label="Link ảnh sản phẩm" name="imageUrl" placeholder="https://..." />
+          <ImageUploadField key={imageInputKey} />
           <label>
             <span className="text-sm font-semibold">Phương thức gửi hàng</span>
             <select name="sendMethod" required className="mt-2 h-12 w-full rounded-md border border-black/10 px-4">

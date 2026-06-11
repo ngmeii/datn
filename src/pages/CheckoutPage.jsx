@@ -221,7 +221,7 @@ export default function CheckoutPage() {
           />
           <div className="grid gap-5 sm:grid-cols-2">
             <label>
-              <span className="text-sm font-semibold">Tỉnh/Thành phố</span>
+              <RequiredLabel>Tỉnh/Thành phố</RequiredLabel>
               <select
                 data-field="shippingProvince"
                 value={provinceCode}
@@ -244,7 +244,7 @@ export default function CheckoutPage() {
               {fieldErrors.shippingProvince && <FieldError>{fieldErrors.shippingProvince}</FieldError>}
             </label>
             <label>
-              <span className="text-sm font-semibold">Phường/Xã</span>
+              <RequiredLabel>Phường/Xã</RequiredLabel>
               <select
                 name="shippingWard"
                 data-field="shippingWard"
@@ -265,7 +265,7 @@ export default function CheckoutPage() {
             </label>
           </div>
           <label>
-            <span className="text-sm font-semibold">Địa chỉ chi tiết</span>
+            <RequiredLabel>Địa chỉ chi tiết</RequiredLabel>
             <textarea
               name="shippingStreet"
               data-field="shippingStreet"
@@ -399,7 +399,7 @@ function Row({ label, value, strong }) {
 function CheckoutField({ label, error, ...props }) {
   return (
     <label>
-      <span className="text-sm font-semibold">{label}</span>
+      {props.required ? <RequiredLabel>{label}</RequiredLabel> : <span className="text-sm font-semibold">{label}</span>}
       <input
         {...props}
         data-field={props.name}
@@ -415,6 +415,14 @@ function CheckoutField({ label, error, ...props }) {
 
 function FieldError({ children }) {
   return <span className="mt-1.5 block text-xs font-semibold text-danger">{children}</span>;
+}
+
+function RequiredLabel({ children }) {
+  return (
+    <span className="text-sm font-semibold">
+      {children} <span className="text-danger" aria-hidden="true">*</span>
+    </span>
+  );
 }
 
 function BankRow({ label, value, strong = false }) {

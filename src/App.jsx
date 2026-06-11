@@ -16,6 +16,7 @@ import StaffOrderPage from "./pages/StaffOrderPage.jsx";
 import StaffPage from "./pages/StaffPage.jsx";
 import StaffProductDetailPage from "./pages/StaffProductDetailPage.jsx";
 import StaffProductPage from "./pages/StaffProductPage.jsx";
+import StaffReportPage from "./pages/StaffReportPage.jsx";
 import { getCurrentUser } from "./lib/api.js";
 
 export default function App() {
@@ -29,6 +30,7 @@ export default function App() {
       <Route path="/staff/orders" element={<RequireAuth><StaffOrderPage /></RequireAuth>} />
       <Route path="/staff/products" element={<RequireAuth><StaffProductPage /></RequireAuth>} />
       <Route path="/staff/products/:id" element={<RequireAuth><StaffProductDetailPage /></RequireAuth>} />
+      <Route path="/staff/reports" element={<RequireAuth><StaffReportPage /></RequireAuth>} />
       <Route element={<Layout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/products" element={<ProductPage />} />

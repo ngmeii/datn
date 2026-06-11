@@ -7,6 +7,7 @@ import consignmentRoutes from "./routes/consignments.js";
 import orderRoutes from "./routes/orders.js";
 import adminRoutes from "./routes/admin.js";
 import locationRoutes from "./routes/locations.js";
+import uploadRoutes, { uploadDirectory } from "./routes/uploads.js";
 import { query } from "./db.js";
 
 const app = express();
@@ -46,8 +47,18 @@ app.use("/api/consignments", consignmentRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/locations", locationRoutes);
+app.use("/api/uploads", express.static(uploadDirectory));
+app.use("/api/uploads", uploadRoutes);
 
 app.use((error, _req, res, _next) => {
+  if (error?.code === "LIMIT_FILE_SIZE") {
+    return res.status(400).json({ message: "Ảnh không được vượt quá 5 MB." });
+  }
+
+  if (error?.message?.startsWith("Chỉ hỗ trợ ảnh")) {
+    return res.status(400).json({ message: error.message });
+  }
+
   if (error?.issues) {
     return res.status(400).json({ message: "Dữ liệu không hợp lệ.", issues: error.issues });
   }

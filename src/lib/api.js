@@ -28,10 +28,11 @@ export function clearSession() {
 
 export async function api(path, options = {}) {
   const token = getToken();
+  const isFormData = options.body instanceof FormData;
   const response = await fetch(`/api${path}`, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
+      ...(!isFormData ? { "Content-Type": "application/json" } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
@@ -57,6 +58,14 @@ export async function api(path, options = {}) {
   }
 
   return data;
+}
+
+export async function uploadImage(file) {
+  if (!file) return "";
+  const form = new FormData();
+  form.append("image", file);
+  const result = await api("/uploads/images", { method: "POST", body: form });
+  return result.url;
 }
 
 export function formatMoney(value) {

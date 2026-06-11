@@ -62,7 +62,170 @@ router.get("/summary", requireAuth, requireRole("staff", "admin"), async (_req, 
 router.get("/activity", requireAuth, requireRole("staff", "admin"), async (req, res, next) => {
   try {
     const limit = Math.min(20, Math.max(1, Number(req.query.limit || 8)));
-    return res.json(await listActivityLogs(limit));
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.date || "")) ? String(req.query.date) : "";
+    return res.json(await listActivityLogs(limit, date));
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get("/reports", requireAuth, requireRole("staff", "admin"), async (req, res, next) => {
+  try {
+    const period = getReportPeriod(req.query.start, req.query.end);
+    if (!period) {
+      return res.status(400).json({ message: "Khoảng thời gian báo cáo không hợp lệ." });
+    }
+
+    const previousPeriod = getPreviousPeriod(period);
+    const currentParams = { startDate: period.start, endDate: period.end };
+    const previousParams = { startDate: previousPeriod.start, endDate: previousPeriod.end };
+
+    const [
+      [summary],
+      [previousSummary],
+      revenueRows,
+      categoryRows,
+      [consignmentSummary],
+      [customerStats],
+      topProducts,
+      [disbursementStats],
+    ] = await Promise.all([
+      queryReportSummary(currentParams),
+      queryReportSummary(previousParams),
+      query(
+        `SELECT DATE(created_at) AS date,
+                COALESCE(SUM(total_amount), 0) AS value
+         FROM orders
+         WHERE payment_status = 'paid'
+           AND created_at >= :startDate
+           AND created_at < DATE_ADD(:endDate, INTERVAL 1 DAY)
+         GROUP BY DATE(created_at)
+         ORDER BY date`,
+        currentParams,
+      ),
+      query(
+        `SELECT c.name,
+                COUNT(oi.item_id) AS sold_count,
+                COALESCE(SUM(oi.price_snapshot), 0) AS revenue
+         FROM order_items oi
+         JOIN orders o ON o.order_id = oi.order_id
+         JOIN products p ON p.product_id = oi.product_id
+         LEFT JOIN categories c ON c.category_id = p.category_id
+         WHERE o.payment_status = 'paid'
+           AND o.created_at >= :startDate
+           AND o.created_at < DATE_ADD(:endDate, INTERVAL 1 DAY)
+         GROUP BY c.category_id, c.name
+         ORDER BY revenue DESC`,
+        currentParams,
+      ),
+      query(
+        `SELECT
+           COUNT(*) AS new_count,
+           SUM(status = 'confirmed') AS approved_count,
+           (SELECT COUNT(*)
+              FROM products
+             WHERE sell_status = 'on_sale'
+               AND created_at >= :startDate
+               AND created_at < DATE_ADD(:endDate, INTERVAL 1 DAY)) AS on_sale_count,
+           (SELECT COUNT(DISTINCT oi.item_id)
+              FROM order_items oi
+              JOIN orders o ON o.order_id = oi.order_id
+             WHERE o.payment_status = 'paid'
+               AND o.created_at >= :startDate
+               AND o.created_at < DATE_ADD(:endDate, INTERVAL 1 DAY)) AS sold_count
+         FROM consignment_items
+         WHERE created_at >= :startDate
+           AND created_at < DATE_ADD(:endDate, INTERVAL 1 DAY)`,
+        currentParams,
+      ),
+      query(
+        `SELECT
+           COUNT(*) AS total_count,
+           COALESCE(SUM(CASE WHEN phone IS NOT NULL AND phone <> '' THEN 1 ELSE 0 END), 0) AS with_phone_count,
+           COALESCE(SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 ELSE 0 END), 0) AS last_7_days_count
+         FROM users
+         WHERE role = 'customer'
+           AND created_at >= :startDate
+           AND created_at < DATE_ADD(:endDate, INTERVAL 1 DAY)`,
+        currentParams,
+      ),
+      query(
+        `SELECT p.product_id AS id,
+                p.product_name AS name,
+                JSON_UNQUOTE(JSON_EXTRACT(p.images, '$[0]')) AS image_url,
+                COUNT(oi.item_id) AS sold_count,
+                COALESCE(SUM(oi.price_snapshot), 0) AS revenue
+         FROM order_items oi
+         JOIN orders o ON o.order_id = oi.order_id
+         JOIN products p ON p.product_id = oi.product_id
+         WHERE o.payment_status = 'paid'
+           AND o.created_at >= :startDate
+           AND o.created_at < DATE_ADD(:endDate, INTERVAL 1 DAY)
+         GROUP BY p.product_id, p.product_name, p.images
+         ORDER BY sold_count DESC, revenue DESC
+         LIMIT 5`,
+        currentParams,
+      ),
+      query(
+        `SELECT
+           COUNT(*) AS total_count,
+           COALESCE(SUM(price_snapshot), 0) AS gross_amount,
+           COALESCE(SUM(commission_amount), 0) AS commission_amount,
+           COALESCE(SUM(CASE WHEN status = 'success' THEN net_amount ELSE 0 END), 0) AS success_amount,
+           COALESCE(SUM(CASE WHEN status = 'pending' THEN net_amount ELSE 0 END), 0) AS pending_amount,
+           COALESCE(SUM(CASE WHEN status = 'failed' THEN net_amount ELSE 0 END), 0) AS failed_amount,
+           COALESCE(SUM(status = 'success'), 0) AS success_count,
+           COALESCE(SUM(status = 'pending'), 0) AS pending_count,
+           COALESCE(SUM(status = 'failed'), 0) AS failed_count
+         FROM disbursements
+         WHERE created_at >= :startDate
+           AND created_at < DATE_ADD(:endDate, INTERVAL 1 DAY)`,
+        currentParams,
+      ),
+    ]);
+
+    const newCount = Number(consignmentSummary.new_count || 0);
+    const soldCount = Number(consignmentSummary.sold_count || 0);
+
+    return res.json({
+      period,
+      summary: normalizeReportSummary(summary),
+      previousSummary: normalizeReportSummary(previousSummary),
+      revenue: fillDailySeries(revenueRows, period),
+      categories: categoryRows.map((row) => ({
+        ...row,
+        sold_count: Number(row.sold_count || 0),
+        revenue: Number(row.revenue || 0),
+      })),
+      consignment: {
+        new_count: newCount,
+        approved_count: Number(consignmentSummary.approved_count || 0),
+        on_sale_count: Number(consignmentSummary.on_sale_count || 0),
+        sold_count: soldCount,
+        success_rate: newCount ? Math.round((soldCount / newCount) * 10000) / 100 : 0,
+      },
+      customers: {
+        total_count: Number(customerStats.total_count || 0),
+        with_phone_count: Number(customerStats.with_phone_count || 0),
+        last_7_days_count: Number(customerStats.last_7_days_count || 0),
+      },
+      topProducts: topProducts.map((row) => ({
+        ...row,
+        sold_count: Number(row.sold_count || 0),
+        revenue: Number(row.revenue || 0),
+      })),
+      disbursements: {
+        total_count: Number(disbursementStats.total_count || 0),
+        gross_amount: Number(disbursementStats.gross_amount || 0),
+        commission_amount: Number(disbursementStats.commission_amount || 0),
+        success_amount: Number(disbursementStats.success_amount || 0),
+        pending_amount: Number(disbursementStats.pending_amount || 0),
+        failed_amount: Number(disbursementStats.failed_amount || 0),
+        success_count: Number(disbursementStats.success_count || 0),
+        pending_count: Number(disbursementStats.pending_count || 0),
+        failed_count: Number(disbursementStats.failed_count || 0),
+      },
+    });
   } catch (error) {
     return next(error);
   }
@@ -246,6 +409,69 @@ function getCurrentMonthPeriod() {
   return {
     start: toDateKey(new Date(year, month, 1)),
     end: toDateKey(now),
+  };
+}
+
+function getReportPeriod(start, end) {
+  const today = toDateKey(new Date());
+  const defaultStart = `${today.slice(0, 8)}01`;
+  const startDate = /^\d{4}-\d{2}-\d{2}$/.test(String(start || "")) ? String(start) : defaultStart;
+  const endDate = /^\d{4}-\d{2}-\d{2}$/.test(String(end || "")) ? String(end) : today;
+  const startTime = new Date(`${startDate}T00:00:00`).getTime();
+  const endTime = new Date(`${endDate}T00:00:00`).getTime();
+
+  if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || startTime > endTime) return null;
+  if ((endTime - startTime) / 86400000 > 366) return null;
+  return { start: startDate, end: endDate };
+}
+
+function getPreviousPeriod(period) {
+  const start = new Date(`${period.start}T00:00:00`);
+  const end = new Date(`${period.end}T00:00:00`);
+  const days = Math.round((end - start) / 86400000) + 1;
+  const previousEnd = new Date(start);
+  previousEnd.setDate(previousEnd.getDate() - 1);
+  const previousStart = new Date(previousEnd);
+  previousStart.setDate(previousStart.getDate() - days + 1);
+  return { start: toDateKey(previousStart), end: toDateKey(previousEnd) };
+}
+
+function queryReportSummary(params) {
+  return query(
+    `SELECT
+       COALESCE(SUM(CASE WHEN payment_status = 'paid' THEN total_amount ELSE 0 END), 0) AS revenue,
+       COUNT(*) AS order_count,
+       COALESCE(SUM(CASE WHEN payment_status = 'paid' THEN 1 ELSE 0 END), 0) AS paid_order_count,
+       (SELECT COUNT(DISTINCT oi.item_id)
+          FROM order_items oi
+          JOIN orders paid_orders ON paid_orders.order_id = oi.order_id
+         WHERE paid_orders.payment_status = 'paid'
+           AND paid_orders.created_at >= :startDate
+           AND paid_orders.created_at < DATE_ADD(:endDate, INTERVAL 1 DAY)) AS sold_product_count,
+       (SELECT COALESCE(SUM(COALESCE(ci.seller_price, ci.estimated_price, 0)), 0)
+          FROM consignment_items ci
+         WHERE ci.created_at >= :startDate
+           AND ci.created_at < DATE_ADD(:endDate, INTERVAL 1 DAY)) AS consignment_value,
+       (SELECT COALESCE(SUM(d.net_amount), 0)
+          FROM disbursements d
+         WHERE d.status = 'success'
+           AND d.created_at >= :startDate
+           AND d.created_at < DATE_ADD(:endDate, INTERVAL 1 DAY)) AS payout
+     FROM orders
+     WHERE created_at >= :startDate
+       AND created_at < DATE_ADD(:endDate, INTERVAL 1 DAY)`,
+    params,
+  );
+}
+
+function normalizeReportSummary(summary = {}) {
+  return {
+    revenue: Number(summary.revenue || 0),
+    order_count: Number(summary.order_count || 0),
+    paid_order_count: Number(summary.paid_order_count || 0),
+    sold_product_count: Number(summary.sold_product_count || 0),
+    consignment_value: Number(summary.consignment_value || 0),
+    payout: Number(summary.payout || 0),
   };
 }
 

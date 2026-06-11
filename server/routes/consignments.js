@@ -1,10 +1,15 @@
 import { Router } from "express";
+import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { actorFromRequest, logActivity } from "../activityLog.js";
 import { pool, query } from "../db.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 
 const router = Router();
+const imageReferenceSchema = z.string().max(600).refine(
+  (value) => !value || /^https?:\/\//i.test(value) || value.startsWith("/api/uploads/"),
+  "Đường dẫn ảnh không hợp lệ.",
+);
 
 const createSchema = z.object({
   productName: z.string().min(2),
@@ -13,7 +18,20 @@ const createSchema = z.object({
   conditionNote: z.string().min(5),
   expectedPrice: z.number().nonnegative(),
   sendMethod: z.enum(["drop_off", "pickup", "shipping"]),
-  imageUrl: z.string().url().optional().or(z.literal("")).default(""),
+  imageUrl: imageReferenceSchema.optional().default(""),
+});
+
+const walkInSchema = z.object({
+  customerName: z.string().trim().min(2),
+  customerEmail: z.string().trim().email(),
+  customerPhone: z.string().trim().min(9).max(20),
+  productName: z.string().trim().min(2),
+  categoryId: z.number().int().positive(),
+  brand: z.string().trim().optional().default(""),
+  conditionLevel: z.enum(["new", "like_new", "good", "fair", "poor"]),
+  conditionNote: z.string().trim().min(5),
+  expectedPrice: z.number().nonnegative(),
+  imageUrl: imageReferenceSchema.optional().default(""),
 });
 
 const statusMap = {
@@ -132,6 +150,141 @@ router.post("/", requireAuth, async (req, res, next) => {
     });
   } catch (error) {
     await connection.rollback();
+    return next(error);
+  } finally {
+    connection.release();
+  }
+});
+
+router.post("/walk-in", requireAuth, requireRole("staff", "admin"), async (req, res, next) => {
+  const connection = await pool.getConnection();
+  try {
+    const data = walkInSchema.parse(req.body);
+    await connection.beginTransaction();
+
+    const [matchedUsers] = await connection.execute(
+      `SELECT user_id, email, phone, role
+       FROM users
+       WHERE LOWER(email) = LOWER(?)
+          OR phone = ?
+       FOR UPDATE`,
+      [data.customerEmail, data.customerPhone],
+    );
+
+    if (matchedUsers.length > 1) {
+      await connection.rollback();
+      return res.status(409).json({
+        message: "Email và số điện thoại đang thuộc hai tài khoản khác nhau.",
+      });
+    }
+
+    let sellerId;
+    const matchedUser = matchedUsers[0];
+
+    if (matchedUser) {
+      if (matchedUser.role !== "customer") {
+        await connection.rollback();
+        return res.status(409).json({ message: "Thông tin này không thuộc tài khoản khách hàng." });
+      }
+
+      sellerId = matchedUser.user_id;
+      await connection.execute(
+        `UPDATE users
+         SET full_name = ?,
+             phone = ?,
+             updated_at = NOW()
+         WHERE user_id = ?`,
+        [data.customerName, data.customerPhone, sellerId],
+      );
+    } else {
+      const temporaryPassword = `walk-in-${Date.now()}-${Math.random()}`;
+      const passwordHash = await bcrypt.hash(temporaryPassword, 10);
+      const [userResult] = await connection.execute(
+        `INSERT INTO users
+         (email, password_hash, full_name, phone, role, status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, 'customer', 'active', NOW(), NOW())`,
+        [data.customerEmail.toLowerCase(), passwordHash, data.customerName, data.customerPhone],
+      );
+      sellerId = userResult.insertId;
+    }
+
+    const [requestResult] = await connection.execute(
+      `INSERT INTO consignment_requests
+       (seller_id, send_method, status, note, created_at, updated_at)
+       VALUES (?, 'self_deliver', 'processing', ?, NOW(), NOW())`,
+      [sellerId, `Khách mang sản phẩm trực tiếp đến cửa hàng. ${data.conditionNote}`],
+    );
+
+    const [itemResult] = await connection.execute(
+      `INSERT INTO consignment_items
+       (request_id, category_id, product_name, brand, condition_level, description, estimated_price, seller_price, images, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'confirmed', NOW(), NOW())`,
+      [
+        requestResult.insertId,
+        data.categoryId,
+        data.productName,
+        data.brand,
+        data.conditionLevel,
+        data.conditionNote,
+        data.expectedPrice,
+        data.expectedPrice,
+        JSON.stringify(data.imageUrl ? [data.imageUrl] : []),
+      ],
+    );
+
+    const [productResult] = await connection.execute(
+      `INSERT INTO products
+       (consignment_item_id, seller_id, category_id, product_name, brand, condition_level, description, images, final_price, commission_rate, display_status, sell_status, consign_start_date, consign_end_date, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 20, 'visible', 'on_sale', CURDATE(), DATE_ADD(CURDATE(), INTERVAL 45 DAY), NOW(), NOW())`,
+      [
+        itemResult.insertId,
+        sellerId,
+        data.categoryId,
+        data.productName,
+        data.brand,
+        data.conditionLevel,
+        data.conditionNote,
+        JSON.stringify(data.imageUrl ? [data.imageUrl] : []),
+        data.expectedPrice,
+      ],
+    );
+
+    await connection.execute(
+      `UPDATE consignment_requests
+       SET status = 'completed',
+           updated_at = NOW()
+       WHERE request_id = ?`,
+      [requestResult.insertId],
+    );
+
+    await connection.commit();
+    await logActivity({
+      ...actorFromRequest(req),
+      entityType: "consignment",
+      entityId: itemResult.insertId,
+      action: "walk_in_consignment_created",
+      message: `Đã tạo yêu cầu ký gửi tại cửa hàng #KG${String(itemResult.insertId).padStart(4, "0")} và đăng bán ngay sản phẩm ${data.productName}.`,
+      metadata: {
+        requestId: requestResult.insertId,
+        productId: productResult.insertId,
+        sellerId,
+        customerName: data.customerName,
+        productName: data.productName,
+      },
+    });
+
+    return res.status(201).json({
+      id: itemResult.insertId,
+      requestId: requestResult.insertId,
+      productId: productResult.insertId,
+      status: "listed",
+      message: "Đã tạo yêu cầu và đăng bán sản phẩm ngay.",
+    });
+  } catch (error) {
+    await connection.rollback();
+    if (error?.code === "ER_DUP_ENTRY") {
+      return res.status(409).json({ message: "Email khách hàng đã tồn tại với thông tin khác." });
+    }
     return next(error);
   } finally {
     connection.release();

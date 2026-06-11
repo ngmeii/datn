@@ -15,6 +15,7 @@ import { Link, useNavigate } from "react-router-dom";
 import StaffHeader from "../components/StaffHeader.jsx";
 import StaffSidebar from "../components/StaffSidebar.jsx";
 import { api, formatMoney, getCurrentUser } from "../lib/api.js";
+import { matchesEntityKeyword } from "../lib/search.js";
 
 const heroImage = "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?auto=format&fit=crop&w=1300&q=90";
 const fallbackImage = "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?auto=format&fit=crop&w=700&q=85";
@@ -63,7 +64,12 @@ export default function StaffProductPage() {
   const filteredProducts = useMemo(() => {
     const keyword = query.trim().toLowerCase();
     return products.filter((product) => (
-      (!keyword || product.name?.toLowerCase().includes(keyword) || product.brand?.toLowerCase().includes(keyword) || String(product.id).includes(keyword)) &&
+      matchesEntityKeyword(keyword, {
+        id: product.id,
+        prefixes: ["TH", "SP"],
+        width: 7,
+        texts: [product.name, product.brand],
+      }) &&
       (!category || product.category_name === category) &&
       (!status || product.status === status) &&
       (!brand || product.brand === brand)

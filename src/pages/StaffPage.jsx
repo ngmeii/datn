@@ -15,6 +15,7 @@ import { Link, useNavigate } from "react-router-dom";
 import StaffHeader from "../components/StaffHeader.jsx";
 import StaffSidebar from "../components/StaffSidebar.jsx";
 import { api, formatMoney, getCurrentUser } from "../lib/api.js";
+import { matchesEntityKeyword } from "../lib/search.js";
 
 const requestStatusLabels = {
   pending_review: "Mới",
@@ -36,6 +37,7 @@ export default function StaffPage() {
   const [products, setProducts] = useState([]);
   const [activities, setActivities] = useState([]);
   const [query, setQuery] = useState("");
+  const [selectedDate, setSelectedDate] = useState(() => toDateKey(new Date()));
   const isStaff = ["staff", "admin"].includes(user?.role);
 
   useEffect(() => {
@@ -49,7 +51,7 @@ export default function StaffPage() {
       api("/consignments").catch(() => []),
       api("/orders").catch(() => []),
       api("/products?status=").catch(() => []),
-      api("/admin/activity?limit=8").catch(() => []),
+      api(`/admin/activity?limit=50&date=${selectedDate}`).catch(() => []),
     ]).then(([requestData, orderData, productData, activityData]) => {
       setRequests(requestData);
       setOrders(orderData);
@@ -58,45 +60,89 @@ export default function StaffPage() {
     });
   }, []);
 
+  useEffect(() => {
+    if (!isStaff) return;
+    api(`/admin/activity?limit=50&date=${selectedDate}`)
+      .then(setActivities)
+      .catch(() => setActivities([]));
+  }, [isStaff, selectedDate]);
+
+  const selectedRequests = useMemo(
+    () => requests.filter((item) => isDateKey(item.created_at, selectedDate)),
+    [requests, selectedDate],
+  );
+
+  const selectedOrders = useMemo(
+    () => orders.filter((item) => isDateKey(item.created_at, selectedDate)),
+    [orders, selectedDate],
+  );
+
+  const selectedActivities = useMemo(
+    () => activities.filter((item) => isDateKey(item.created_at, selectedDate)).slice(0, 8),
+    [activities, selectedDate],
+  );
+
   const overview = useMemo(() => {
-    const newRequests = requests.filter((item) => item.status === "pending_review");
-    const needInspection = requests.filter((item) => ["approved", "received", "inspecting"].includes(item.status));
-    const waitConfirmOrders = orders.filter((item) => ["pending_confirmation", "pending_payment"].includes(item.status));
+    const newRequests = selectedRequests.filter((item) => item.status === "pending_review");
+    const needInspection = selectedRequests.filter((item) => ["approved", "received", "inspecting"].includes(item.status));
+    const waitConfirmOrders = selectedOrders.filter((item) => ["pending_confirmation", "pending_payment"].includes(item.status));
     const activeProducts = products.filter((item) => item.status === "on_sale");
-    const todayRevenue = orders
+    const todayRevenue = selectedOrders
       .filter((item) => item.status === "completed" || item.payment_status === "paid")
       .reduce((sum, item) => sum + Number(item.total || 0), 0);
+    const selectedTime = dateKeyToLocalDate(selectedDate).getTime();
 
     return {
       newRequests: newRequests.length,
       needInspection: needInspection.length,
-      newOrders: waitConfirmOrders.length || orders.length,
+      newOrders: selectedOrders.length,
       todayRevenue,
       activeProducts: activeProducts.length,
       waitConfirmOrders: waitConfirmOrders.length,
-      needUpdateOrders: orders.filter((item) => ["confirmed", "shipping"].includes(item.status)).length,
+      needUpdateOrders: selectedOrders.filter((item) => ["confirmed", "shipping"].includes(item.status)).length,
       expiringProducts: products.filter((item) => {
         const expiresAt = item.expires_at ? new Date(item.expires_at).getTime() : Infinity;
-        return expiresAt - Date.now() <= 7 * 86400000;
+        const remaining = expiresAt - selectedTime;
+        return remaining >= 0 && remaining <= 7 * 86400000;
       }).length,
     };
-  }, [requests, orders, products]);
+  }, [selectedRequests, selectedOrders, products, selectedDate]);
+
+  const previousOverview = useMemo(() => {
+    const previousDate = shiftDateKey(selectedDate, -1);
+    const previousRequests = requests.filter((item) => isDateKey(item.created_at, previousDate));
+    const previousOrders = orders.filter((item) => isDateKey(item.created_at, previousDate));
+
+    return {
+      newRequests: previousRequests.filter((item) => item.status === "pending_review").length,
+      needInspection: previousRequests.filter((item) => ["approved", "received", "inspecting"].includes(item.status)).length,
+      newOrders: previousOrders.length,
+      revenue: previousOrders
+        .filter((item) => item.status === "completed" || item.payment_status === "paid")
+        .reduce((sum, item) => sum + Number(item.total || 0), 0),
+    };
+  }, [requests, orders, selectedDate]);
 
   const latestRequests = useMemo(() => {
     const keyword = query.trim().toLowerCase();
-    return requests
-      .filter((item) => !keyword || item.product_name?.toLowerCase().includes(keyword) || item.seller_name?.toLowerCase().includes(keyword) || String(item.id).includes(keyword))
+    return selectedRequests
+      .filter((item) => matchesEntityKeyword(keyword, {
+        id: item.id,
+        prefixes: ["THK", "KG"],
+        width: 6,
+        texts: [item.product_name, item.seller_name],
+      }))
       .slice(0, 5);
-  }, [requests, query]);
+  }, [selectedRequests, query]);
 
   if (!user) return null;
   if (!isStaff) return <AccessDenied />;
 
   const kpis = [
-    { label: "Yêu cầu ký gửi mới", value: overview.newRequests, icon: ClipboardCheck, delta: "9,1% so với hôm qua" },
-    { label: "Sản phẩm chờ kiểm định", value: overview.needInspection, icon: Tag, delta: "5,6% so với hôm qua" },
-    { label: "Đơn hàng mới", value: overview.newOrders, icon: ShoppingCart, delta: "15,4% so với hôm qua" },
-    { label: "Doanh thu hôm nay (VND)", value: formatMoney(overview.todayRevenue), icon: WalletCards, delta: "12,7% so với hôm qua" },
+    { label: "Yêu cầu ký gửi mới", value: overview.newRequests, icon: ClipboardCheck, delta: getDelta(overview.newRequests, previousOverview.newRequests) },
+    { label: "Sản phẩm chờ kiểm định", value: overview.needInspection, icon: Tag, delta: getDelta(overview.needInspection, previousOverview.needInspection) },
+    { label: "Đơn hàng mới", value: overview.newOrders, icon: ShoppingCart, delta: getDelta(overview.newOrders, previousOverview.newOrders) },
+    { label: "Doanh thu trong ngày (VND)", value: formatMoney(overview.todayRevenue), icon: WalletCards, delta: getDelta(overview.todayRevenue, previousOverview.revenue) },
   ];
 
   return (
@@ -116,12 +162,19 @@ export default function StaffPage() {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <h1 className="font-display text-3xl font-bold leading-none">Tổng quan</h1>
-              <p className="mt-2 text-sm text-muted">Tổng quan hoạt động tại cửa hàng hôm nay.</p>
+              <p className="mt-2 text-sm text-muted">Tổng quan hoạt động của cửa hàng theo ngày đã chọn.</p>
             </div>
-            <button className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-white px-4 text-sm font-semibold text-[#6d5f55] shadow-sm">
+            <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-border bg-white px-4 text-sm font-semibold text-[#6d5f55] shadow-sm">
               <CalendarDays size={17} className="text-clay" />
-              Hôm nay: {formatShortDate(new Date())}
-            </button>
+              <span className="whitespace-nowrap">{selectedDate === toDateKey(new Date()) ? "Hôm nay" : "Ngày"}:</span>
+              <input
+                type="date"
+                value={selectedDate}
+                max={toDateKey(new Date())}
+                onChange={(event) => setSelectedDate(event.target.value)}
+                className="bg-transparent font-semibold outline-none"
+              />
+            </label>
           </div>
 
           <section className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
@@ -134,7 +187,9 @@ export default function StaffPage() {
                   <div>
                     <p className="text-xs font-bold text-[#6d6057]">{item.label}</p>
                     <p className="mt-2 font-display text-3xl font-bold">{item.value}</p>
-                    <p className="mt-3 text-xs font-semibold text-success">▲ {item.delta}</p>
+                    <p className={`mt-3 text-xs font-semibold ${item.delta.tone}`}>
+                      {item.delta.symbol} {item.delta.text}
+                    </p>
                   </div>
                 </div>
               </article>
@@ -142,12 +197,12 @@ export default function StaffPage() {
           </section>
 
           <section className="mt-6 grid gap-5 xl:grid-cols-[1.25fr_0.85fr_0.75fr]">
-            <ChartCard title="Doanh thu 7 ngày qua (VND)" action="7 ngày qua">
-              <RevenueChart orders={orders} />
+            <ChartCard title="Doanh thu 7 ngày (VND)" action={`Đến ${formatShortDate(dateKeyToLocalDate(selectedDate))}`}>
+              <RevenueChart orders={orders} endDate={selectedDate} />
             </ChartCard>
 
             <ChartCard title="Đơn hàng theo trạng thái">
-              <OrderDonut orders={orders} />
+              <OrderDonut orders={selectedOrders} />
             </ChartCard>
 
             <TaskPanel overview={overview} />
@@ -155,7 +210,7 @@ export default function StaffPage() {
 
           <section className="mt-6 grid gap-5 xl:grid-cols-[1.25fr_0.85fr_0.75fr]">
             <NewRequestsTable requests={latestRequests} navigate={navigate} />
-            <ActivityPanel activities={activities} />
+            <ActivityPanel activities={selectedActivities} />
           </section>
         </div>
       </section>
@@ -175,8 +230,8 @@ function ChartCard({ title, action, children }) {
   );
 }
 
-function RevenueChart({ orders }) {
-  const points = buildRevenueSeries(orders);
+function RevenueChart({ orders, endDate }) {
+  const points = buildRevenueSeries(orders, endDate);
   const max = Math.max(1, ...points.map((item) => item.value));
   const coords = points.map((item, index) => ({
     ...item,
@@ -338,7 +393,9 @@ function ActivityPanel({ activities }) {
             </span>
             <div>
               <p className="text-sm font-semibold leading-5">{item.message}</p>
-              <p className="mt-1 text-xs text-muted">{formatRelative(item.created_at)}</p>
+              <p className="mt-1 text-xs text-muted">
+                {isDateKey(item.created_at, toDateKey(new Date())) ? formatRelative(item.created_at) : formatDateTime(item.created_at)}
+              </p>
             </div>
           </div>
         ))}
@@ -369,13 +426,13 @@ function AccessDenied() {
   );
 }
 
-function buildRevenueSeries(orders) {
+function buildRevenueSeries(orders, endDate) {
   return Array.from({ length: 7 }, (_, index) => {
-    const date = new Date();
+    const date = dateKeyToLocalDate(endDate);
     date.setDate(date.getDate() - (6 - index));
-    const key = date.toISOString().slice(0, 10);
+    const key = toDateKey(date);
     const value = orders
-      .filter((item) => String(item.created_at || "").slice(0, 10) === key)
+      .filter((item) => isDateKey(item.created_at, key))
       .reduce((sum, item) => sum + Number(item.total || 0), 0);
     return { label: formatShortDate(date).slice(0, 5), value };
   });
@@ -397,4 +454,53 @@ function formatRelative(value) {
   const hours = Math.round(minutes / 60);
   if (hours < 24) return `${hours} giờ trước`;
   return `${Math.round(hours / 24)} ngày trước`;
+}
+
+function toDateKey(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function dateKeyToLocalDate(value) {
+  const [year, month, day] = String(value || "").split("-").map(Number);
+  return year && month && day ? new Date(year, month - 1, day) : new Date();
+}
+
+function shiftDateKey(value, amount) {
+  const date = dateKeyToLocalDate(value);
+  date.setDate(date.getDate() + amount);
+  return toDateKey(date);
+}
+
+function isDateKey(value, dateKey) {
+  return Boolean(value && dateKey && toDateKey(value) === dateKey);
+}
+
+function getDelta(current, previous) {
+  const currentValue = Number(current || 0);
+  const previousValue = Number(previous || 0);
+
+  if (currentValue === previousValue) {
+    return { symbol: "•", text: "Không thay đổi so với ngày trước", tone: "text-muted" };
+  }
+
+  if (previousValue === 0) {
+    return {
+      symbol: currentValue > 0 ? "▲" : "▼",
+      text: `${currentValue > 0 ? "Tăng" : "Giảm"} ${Math.abs(currentValue).toLocaleString("vi-VN")} so với ngày trước`,
+      tone: currentValue > 0 ? "text-success" : "text-danger",
+    };
+  }
+
+  const percent = Math.abs(((currentValue - previousValue) / previousValue) * 100);
+  const increased = currentValue > previousValue;
+  return {
+    symbol: increased ? "▲" : "▼",
+    text: `${percent.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}% so với ngày trước`,
+    tone: increased ? "text-success" : "text-danger",
+  };
 }
