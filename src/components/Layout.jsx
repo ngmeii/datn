@@ -14,8 +14,8 @@ const navItems = [
 ];
 
 export default function Layout() {
-  const user = getCurrentUser();
   const location = useLocation();
+  const [user] = useState(() => getCurrentUser());
   const [cartCount, setCartCount] = useState(() => getCart().length);
 
   useEffect(() => onCartChange(() => setCartCount(getCart().length)), []);

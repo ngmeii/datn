@@ -360,10 +360,10 @@ function LineChart({ data = [] }) {
   const area = points.length ? `${line} 310,123 40,123` : "";
   return (
     <svg viewBox="0 0 320 135" className="h-full w-full" aria-label="Biểu đồ doanh thu">
-      {[18, 53, 88, 123].map((y) => <line key={y} x1="40" x2="314" y1={y} y2={y} stroke="#eee7e1" strokeWidth="1" />)}
-      {area && <polygon points={area} fill="#f8eee4" />}
-      {line && <polyline points={line} fill="none" stroke="#ad6a3e" strokeWidth="2" />}
-      {points.map((point) => <circle key={point.date} cx={point.x} cy={point.y} r="2.5" fill="#ad6a3e" />)}
+      {[18, 53, 88, 123].map((y) => <line key={y} x1="40" x2="314" y1={y} y2={y} stroke="var(--color-border)" strokeWidth="1" />)}
+      {area && <polygon points={area} fill="var(--color-linen)" />}
+      {line && <polyline points={line} fill="none" stroke="var(--color-clay)" strokeWidth="2" />}
+      {points.map((point) => <circle key={point.date} cx={point.x} cy={point.y} r="2.5" fill="var(--color-clay)" />)}
       <ChartLabels data={data} />
     </svg>
   );
@@ -374,11 +374,11 @@ function BarChart({ data = [] }) {
   const barWidth = Math.max(3, Math.min(8, 245 / Math.max(1, data.length) - 2));
   return (
     <svg viewBox="0 0 320 135" className="h-full w-full" aria-label="Biểu đồ đơn hàng">
-      {[18, 53, 88, 123].map((y) => <line key={y} x1="32" x2="314" y1={y} y2={y} stroke="#eee7e1" strokeWidth="1" />)}
+      {[18, 53, 88, 123].map((y) => <line key={y} x1="32" x2="314" y1={y} y2={y} stroke="var(--color-border)" strokeWidth="1" />)}
       {data.map((item, index) => {
         const height = (Number(item.value || 0) / max) * 100;
         const x = 40 + index * (270 / Math.max(1, data.length));
-        return <rect key={item.date} x={x} y={123 - height} width={barWidth} height={height} fill="#ad6a3e" />;
+        return <rect key={item.date} x={x} y={123 - height} width={barWidth} height={height} fill="var(--color-clay)" />;
       })}
       <ChartLabels data={data} />
     </svg>
@@ -395,7 +395,7 @@ function DonutChart({ customers = {} }) {
     <div className="flex h-full items-center justify-center gap-7">
       <div
         className="relative h-[118px] w-[118px] shrink-0 rounded-full"
-        style={{ background: `conic-gradient(#ad6a3e 0 ${newPercent}%, #ead9ca ${newPercent}% 100%)` }}
+        style={{ background: `conic-gradient(var(--color-clay) 0 ${newPercent}%, var(--color-linen) ${newPercent}% 100%)` }}
       >
         <div className="absolute inset-[19px] rounded-full bg-white" />
       </div>

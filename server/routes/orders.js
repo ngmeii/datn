@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { actorFromRequest, logActivity } from "../activityLog.js";
 import { query, pool } from "../db.js";
-import { requireAuth, requireRole } from "../middleware/auth.js";
+import { optionalAuth, requireAuth, requireRole } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -13,7 +13,12 @@ const createSchema = z.object({
       quantity: z.number().int().positive().default(1),
     }),
   ).min(1),
-  shippingAddress: z.string().min(8),
+  receiverName: z.string().trim().min(2).max(150),
+  receiverPhone: z.string().trim().regex(/^(?:\+84|0)\d{9,10}$/),
+  receiverEmail: z.string().trim().email().max(190),
+  shippingProvince: z.string().trim().min(2).max(100),
+  shippingWard: z.string().trim().min(2).max(100),
+  shippingStreet: z.string().trim().min(3).max(255),
   paymentMethod: z.enum(["cod", "bank_transfer", "online"]),
   voucherCode: z.string().optional().default(""),
 });
@@ -59,17 +64,87 @@ router.get("/", requireAuth, async (req, res, next) => {
               o.subtotal_amount AS subtotal,
               o.shipping_fee,
               o.total_amount AS total,
-              o.shipping_street AS shipping_address,
+              o.receiver_name,
+              o.receiver_phone,
+              o.receiver_email,
+              o.shipping_province,
+              o.shipping_ward,
+              o.shipping_street,
+              CONCAT_WS(', ', o.shipping_street, o.shipping_ward, o.shipping_province) AS shipping_address,
               o.created_at,
-              u.full_name AS buyer_name
+              COALESCE(u.full_name, o.receiver_name) AS buyer_name
        FROM orders o
-       JOIN users u ON u.user_id = o.buyer_id
+       LEFT JOIN users u ON u.user_id = o.buyer_id
        ${staffQuery}
        ORDER BY o.created_at DESC`,
       { userId: req.user.id },
     );
 
     return res.json(rows.map((row) => ({ ...row, status: orderToUiStatus[row.order_status] || row.order_status })));
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get("/:id", requireAuth, async (req, res, next) => {
+  try {
+    const orders = await query(
+      `SELECT o.order_id AS id,
+              o.buyer_id,
+              o.payment_method,
+              o.payment_status,
+              o.order_status,
+              o.subtotal_amount AS subtotal,
+              o.shipping_fee,
+              o.discount_amount,
+              o.total_amount AS total,
+              o.receiver_name,
+              o.receiver_phone,
+              o.receiver_email,
+              o.shipping_province,
+              o.shipping_ward,
+              o.shipping_street,
+              CONCAT_WS(', ', o.shipping_street, o.shipping_ward, o.shipping_province) AS shipping_address,
+              o.created_at
+       FROM orders o
+       WHERE o.order_id = :id
+         AND (:isStaff = 1 OR o.buyer_id = :userId)
+       LIMIT 1`,
+      {
+        id: req.params.id,
+        isStaff: ["staff", "admin"].includes(req.user.role) ? 1 : 0,
+        userId: req.user.id,
+      },
+    );
+
+    if (!orders.length) {
+      return res.status(404).json({ message: "Không tìm thấy đơn hàng." });
+    }
+
+    const items = await query(
+      `SELECT oi.item_id AS id,
+              oi.product_id,
+              oi.price_snapshot AS price,
+              p.product_name AS name,
+              p.brand,
+              p.size,
+              p.color,
+              JSON_UNQUOTE(JSON_EXTRACT(p.images, '$[0]')) AS image_url,
+              c.name AS category_name
+       FROM order_items oi
+       JOIN products p ON p.product_id = oi.product_id
+       LEFT JOIN categories c ON c.category_id = p.category_id
+       WHERE oi.order_id = :id
+       ORDER BY oi.item_id`,
+      { id: req.params.id },
+    );
+
+    const order = orders[0];
+    return res.json({
+      ...order,
+      status: orderToUiStatus[order.order_status] || order.order_status,
+      items,
+    });
   } catch (error) {
     return next(error);
   }
@@ -92,7 +167,7 @@ router.post("/quote", async (req, res, next) => {
   }
 });
 
-router.post("/", requireAuth, async (req, res, next) => {
+router.post("/", optionalAuth, async (req, res, next) => {
   const connection = await pool.getConnection();
   try {
     const data = createSchema.parse(req.body);
@@ -104,9 +179,23 @@ router.post("/", requireAuth, async (req, res, next) => {
 
     const [orderResult] = await connection.execute(
       `INSERT INTO orders
-       (buyer_id, receiver_name, receiver_phone, shipping_province, shipping_district, shipping_ward, shipping_street, subtotal_amount, shipping_fee, discount_amount, total_amount, payment_method, payment_status, order_status, created_at, updated_at)
-       VALUES (?, ?, ?, '', '', '', ?, ?, ?, ?, ?, ?, 'unpaid', ?, NOW(), NOW())`,
-      [req.user.id, "Khach hang", "", data.shippingAddress, quote.subtotal, quote.shippingFee, quote.discountAmount, quote.total, data.paymentMethod, orderStatus],
+       (buyer_id, receiver_name, receiver_phone, receiver_email, shipping_province, shipping_district, shipping_ward, shipping_street, subtotal_amount, shipping_fee, discount_amount, total_amount, payment_method, payment_status, order_status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, 'unpaid', ?, NOW(), NOW())`,
+      [
+        req.user?.id || null,
+        data.receiverName,
+        data.receiverPhone,
+        data.receiverEmail,
+        data.shippingProvince,
+        data.shippingWard,
+        data.shippingStreet,
+        quote.subtotal,
+        quote.shippingFee,
+        quote.discountAmount,
+        quote.total,
+        data.paymentMethod,
+        orderStatus,
+      ],
     );
 
     for (const item of data.items) {

@@ -1,6 +1,6 @@
 import { BarChart3, ClipboardList, PackageCheck, ReceiptText } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { api, formatMoney, getCurrentUser } from "../lib/api.js";
 
 const statusText = {
@@ -209,8 +209,18 @@ function ConsignmentRow({ item, isStaff, onAction }) {
 }
 
 function OrderRow({ order, isStaff, onAction }) {
+  const navigate = useNavigate();
+
   return (
-    <div className="border-b border-black/10 py-5 last:border-b-0">
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={() => navigate(`/orders/${order.id}`)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") navigate(`/orders/${order.id}`);
+      }}
+      className="cursor-pointer border-b border-black/10 px-3 py-5 transition last:border-b-0 hover:bg-cream"
+    >
       <div className="flex flex-wrap justify-between gap-4">
         <div>
           <p className="font-bold">Đơn hàng #{order.id}</p>
@@ -222,7 +232,7 @@ function OrderRow({ order, isStaff, onAction }) {
         </div>
       </div>
       {isStaff && (
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
           {order.status === "pending_confirmation" && (
             <ActionButton onClick={() => onAction(() => api(`/orders/${order.id}/status`, { method: "PATCH", body: JSON.stringify({ status: "confirmed" }) }))}>
               Xác nhận đơn

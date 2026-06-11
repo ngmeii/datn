@@ -26,8 +26,8 @@ export default function LoginPage() {
       const destination = {
         admin: "/admin",
         staff: "/staff",
-        customer: "/dashboard",
-      }[session.user.role] || "/dashboard";
+        customer: "/",
+      }[session.user.role] || "/";
       window.location.assign(destination);
     } catch (err) {
       setError(err.message);
@@ -71,7 +71,7 @@ export default function LoginPage() {
             )}
             <label className="block">
               <span className="text-sm font-semibold">Email</span>
-              <input name="email" type="email" required defaultValue="staff@heirloom.vn" className="mt-3 h-14 w-full rounded-full border border-black/10 bg-white px-6 outline-none" />
+              <input name="email" type="email" required defaultValue="mai@example.com" className="mt-3 h-14 w-full rounded-full border border-black/10 bg-white px-6 outline-none" />
             </label>
             <label className="block">
               <span className="text-sm font-semibold">Mật khẩu</span>

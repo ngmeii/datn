@@ -6,6 +6,7 @@ import productRoutes from "./routes/products.js";
 import consignmentRoutes from "./routes/consignments.js";
 import orderRoutes from "./routes/orders.js";
 import adminRoutes from "./routes/admin.js";
+import locationRoutes from "./routes/locations.js";
 import { query } from "./db.js";
 
 const app = express();
@@ -44,6 +45,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/consignments", consignmentRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/locations", locationRoutes);
 
 app.use((error, _req, res, _next) => {
   if (error?.issues) {
@@ -54,6 +56,37 @@ app.use((error, _req, res, _next) => {
   return res.status(500).json({ message: "Lỗi máy chủ." });
 });
 
-app.listen(port, () => {
-  console.log(`API server running at http://localhost:${port}`);
-});
+ensureOrderSchema()
+  .then(() => {
+    app.listen(port, () => {
+      console.log(`API server running at http://localhost:${port}`);
+    });
+  })
+  .catch((error) => {
+    console.error("Unable to initialize database schema:", error);
+    process.exit(1);
+  });
+
+async function ensureOrderSchema() {
+  const columns = await query("SHOW COLUMNS FROM orders LIKE 'receiver_email'");
+  if (!columns.length) {
+    await query("ALTER TABLE orders ADD COLUMN receiver_email VARCHAR(190) NULL AFTER receiver_phone");
+  }
+
+  const buyerColumns = await query(
+    `SELECT COLUMN_TYPE AS columnType, IS_NULLABLE AS isNullable
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'orders'
+       AND COLUMN_NAME = 'buyer_id'`,
+  );
+  const buyerColumn = buyerColumns[0];
+
+  if (buyerColumn && buyerColumn.isNullable === "NO") {
+    const columnType = String(buyerColumn.columnType || "");
+    if (!/^(?:tinyint|smallint|mediumint|int|bigint)(?: unsigned)?$/i.test(columnType)) {
+      throw new Error("Unsupported orders.buyer_id column type.");
+    }
+    await query(`ALTER TABLE orders MODIFY COLUMN buyer_id ${columnType} NULL`);
+  }
+}

@@ -1,12 +1,11 @@
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api, formatMoney, getCurrentUser } from "../lib/api.js";
 import { clearCheckoutItems, clearCart, getCheckoutItems, removeFromCart } from "../lib/cart.js";
 
 export default function CheckoutPage() {
   const [params] = useSearchParams();
-  const navigate = useNavigate();
   const productId = params.get("productId");
   const user = getCurrentUser();
   const [items, setItems] = useState([]);
@@ -15,6 +14,13 @@ export default function CheckoutPage() {
   const [voucherCode, setVoucherCode] = useState("");
   const [quote, setQuote] = useState(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
+  const [provinces, setProvinces] = useState([]);
+  const [wards, setWards] = useState([]);
+  const [provinceCode, setProvinceCode] = useState("");
+  const [wardLoading, setWardLoading] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("cod");
+  const [transferContent] = useState(() => `HEIRLOOM ${Date.now().toString().slice(-8)}`);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   useEffect(() => {
     if (productId) {
@@ -27,6 +33,32 @@ export default function CheckoutPage() {
   useEffect(() => {
     setQuote(null);
   }, [items, voucherCode]);
+
+  useEffect(() => {
+    api("/locations/provinces")
+      .then(setProvinces)
+      .catch((error) => setMessage(error.message));
+  }, []);
+
+  useEffect(() => {
+    setWards([]);
+    if (!provinceCode) return;
+
+    setWardLoading(true);
+    api(`/locations/provinces/${provinceCode}/wards`)
+      .then(setWards)
+      .catch((error) => setMessage(error.message))
+      .finally(() => setWardLoading(false));
+  }, [provinceCode]);
+
+  function clearFieldError(field) {
+    setFieldErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  }
 
   async function handleApplyVoucher() {
     const code = voucherCode.trim();
@@ -62,24 +94,56 @@ export default function CheckoutPage() {
 
   async function handleSubmit(event) {
     event.preventDefault();
-    if (!user) {
-      navigate("/login");
-      return;
-    }
     if (!items.length) {
       setMessage("Bạn chưa chọn sản phẩm để thanh toán.");
       return;
     }
 
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const province = provinces.find((item) => String(item.code) === provinceCode);
+    const receiverName = String(form.get("receiverName") || "").trim();
+    const receiverPhone = String(form.get("receiverPhone") || "").replace(/[\s.-]/g, "");
+    const receiverEmail = String(form.get("receiverEmail") || "").trim();
+    const shippingWard = String(form.get("shippingWard") || "").trim();
+    const shippingStreet = String(form.get("shippingStreet") || "").trim();
+    const errors = {};
+
+    if (receiverName.length < 2) errors.receiverName = "Vui lòng nhập họ và tên.";
+    if (!/^(?:\+84|0)\d{9,10}$/.test(receiverPhone)) {
+      errors.receiverPhone = "Vui lòng nhập số điện thoại hợp lệ.";
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(receiverEmail)) {
+      errors.receiverEmail = "Vui lòng nhập email hợp lệ.";
+    }
+    if (!provinceCode || !province) errors.shippingProvince = "Vui lòng chọn tỉnh/thành phố.";
+    if (!shippingWard) errors.shippingWard = "Vui lòng chọn phường/xã.";
+    if (shippingStreet.length < 3) errors.shippingStreet = "Vui lòng nhập địa chỉ chi tiết.";
+
+    if (Object.keys(errors).length) {
+      setFieldErrors(errors);
+      setMessage("Vui lòng điền đầy đủ và chính xác thông tin người nhận.");
+      const firstField = Object.keys(errors)[0];
+      window.setTimeout(() => {
+        formElement.querySelector(`[data-field="${firstField}"]`)?.focus();
+      }, 0);
+      return;
+    }
+
+    setFieldErrors({});
     setLoading(true);
     setMessage("");
-    const form = new FormData(event.currentTarget);
     try {
       const order = await api("/orders", {
         method: "POST",
         body: JSON.stringify({
           items: items.map((item) => ({ productId: Number(item.id), quantity: Number(item.quantity || 1) })),
-          shippingAddress: form.get("shippingAddress"),
+          receiverName,
+          receiverPhone,
+          receiverEmail,
+          shippingProvince: province?.name || "",
+          shippingWard,
+          shippingStreet,
           paymentMethod: form.get("paymentMethod"),
           voucherCode,
         }),
@@ -106,23 +170,154 @@ export default function CheckoutPage() {
   const discountedSubtotal = Math.max(0, subtotal - discountAmount);
   const shippingFee = quote?.shippingFee ?? (subtotal >= 400000 || subtotal === 0 ? 0 : 30000);
   const total = quote?.total ?? (discountedSubtotal + shippingFee);
+  const hasFieldErrors = Object.values(fieldErrors).some(Boolean);
+  const bankCode = import.meta.env.VITE_BANK_CODE || "MB";
+  const bankAccount = import.meta.env.VITE_BANK_ACCOUNT || "0123456789";
+  const bankAccountName = import.meta.env.VITE_BANK_ACCOUNT_NAME || "THE HEIRLOOM";
+  const qrUrl = `https://img.vietqr.io/image/${encodeURIComponent(bankCode)}-${encodeURIComponent(bankAccount)}-compact2.png?amount=${Math.round(total)}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent(bankAccountName)}`;
 
   return (
     <main className="site-container grid gap-10 py-12 lg:grid-cols-[1fr_0.65fr]">
       <section>
         <h1 className="font-display text-5xl font-bold">Thanh toán đơn hàng</h1>
-        <form className="mt-8 grid gap-5 bg-white p-6 shadow-soft" onSubmit={handleSubmit}>
+        <form noValidate className="mt-8 grid gap-5 bg-white p-6 shadow-soft" onSubmit={handleSubmit}>
+          <h2 className="font-display text-2xl font-bold">Thông tin người nhận</h2>
+          {message && hasFieldErrors && (
+            <p className="rounded-md border border-danger/30 bg-danger/10 px-4 py-3 text-sm font-semibold text-danger">
+              {message}
+            </p>
+          )}
+          <div className="grid gap-5 sm:grid-cols-2">
+            <CheckoutField
+              label="Họ và tên"
+              name="receiverName"
+              error={fieldErrors.receiverName}
+              onChange={() => clearFieldError("receiverName")}
+              defaultValue={user?.full_name || ""}
+              autoComplete="name"
+              required
+            />
+            <CheckoutField
+              label="Số điện thoại"
+              name="receiverPhone"
+              error={fieldErrors.receiverPhone}
+              onChange={() => clearFieldError("receiverPhone")}
+              type="tel"
+              defaultValue={user?.phone || ""}
+              autoComplete="tel"
+              placeholder="Ví dụ: 0901234567"
+              required
+            />
+          </div>
+          <CheckoutField
+            label="Email"
+            name="receiverEmail"
+            error={fieldErrors.receiverEmail}
+            onChange={() => clearFieldError("receiverEmail")}
+            type="email"
+            defaultValue={user?.email || ""}
+            autoComplete="email"
+            required
+          />
+          <div className="grid gap-5 sm:grid-cols-2">
+            <label>
+              <span className="text-sm font-semibold">Tỉnh/Thành phố</span>
+              <select
+                data-field="shippingProvince"
+                value={provinceCode}
+                onChange={(event) => {
+                  setProvinceCode(event.target.value);
+                  clearFieldError("shippingProvince");
+                  clearFieldError("shippingWard");
+                }}
+                required
+                aria-invalid={Boolean(fieldErrors.shippingProvince)}
+                className={`mt-2 h-12 w-full rounded-md border bg-white px-4 outline-none ${
+                  fieldErrors.shippingProvince ? "border-danger" : "border-black/10"
+                }`}
+              >
+                <option value="">Chọn tỉnh/thành phố</option>
+                {provinces.map((province) => (
+                  <option key={province.code} value={province.code}>{province.name}</option>
+                ))}
+              </select>
+              {fieldErrors.shippingProvince && <FieldError>{fieldErrors.shippingProvince}</FieldError>}
+            </label>
+            <label>
+              <span className="text-sm font-semibold">Phường/Xã</span>
+              <select
+                name="shippingWard"
+                data-field="shippingWard"
+                required
+                disabled={!provinceCode || wardLoading}
+                onChange={() => clearFieldError("shippingWard")}
+                aria-invalid={Boolean(fieldErrors.shippingWard)}
+                className={`mt-2 h-12 w-full rounded-md border bg-white px-4 outline-none disabled:bg-cream disabled:text-muted ${
+                  fieldErrors.shippingWard ? "border-danger" : "border-black/10"
+                }`}
+              >
+                <option value="">{wardLoading ? "Đang tải phường/xã..." : "Chọn phường/xã"}</option>
+                {wards.map((ward) => (
+                  <option key={ward.code} value={ward.name}>{ward.name}</option>
+                ))}
+              </select>
+              {fieldErrors.shippingWard && <FieldError>{fieldErrors.shippingWard}</FieldError>}
+            </label>
+          </div>
           <label>
-            <span className="text-sm font-semibold">Địa chỉ giao hàng</span>
-            <textarea name="shippingAddress" required rows="4" className="mt-2 w-full rounded-md border border-black/10 px-4 py-3" defaultValue="Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội" />
+            <span className="text-sm font-semibold">Địa chỉ chi tiết</span>
+            <textarea
+              name="shippingStreet"
+              data-field="shippingStreet"
+              required
+              rows="3"
+              onChange={() => clearFieldError("shippingStreet")}
+              aria-invalid={Boolean(fieldErrors.shippingStreet)}
+              className={`mt-2 w-full rounded-md border px-4 py-3 outline-none ${
+                fieldErrors.shippingStreet ? "border-danger" : "border-black/10"
+              }`}
+              placeholder="Số nhà, tên đường, tòa nhà..."
+            />
+            {fieldErrors.shippingStreet && <FieldError>{fieldErrors.shippingStreet}</FieldError>}
           </label>
           <label>
             <span className="text-sm font-semibold">Phương thức thanh toán</span>
-            <select name="paymentMethod" className="mt-2 h-12 w-full rounded-md border border-black/10 px-4">
+            <select
+              name="paymentMethod"
+              value={paymentMethod}
+              onChange={(event) => setPaymentMethod(event.target.value)}
+              className="mt-2 h-12 w-full rounded-md border border-black/10 bg-white px-4 outline-none"
+            >
               <option value="cod">Thanh toán khi nhận hàng (COD)</option>
               <option value="bank_transfer">Chuyển khoản ngân hàng</option>
             </select>
           </label>
+          {paymentMethod === "bank_transfer" && (
+            <section className="rounded-xl border border-border bg-cream p-5">
+              <div className="grid items-center gap-6 sm:grid-cols-[220px_1fr]">
+                <div className="rounded-xl border border-border bg-white p-3">
+                  <img
+                    src={qrUrl}
+                    alt={`Mã QR chuyển khoản ${formatMoney(total)}`}
+                    className="aspect-square w-full object-contain"
+                  />
+                </div>
+                <div>
+                  <p className="font-display text-2xl font-bold">Quét mã để chuyển khoản</p>
+                  <p className="mt-2 text-sm leading-6 text-muted">
+                    Vui lòng chuyển đúng số tiền và giữ nguyên nội dung để cửa hàng đối soát đơn hàng.
+                  </p>
+                  <dl className="mt-5 space-y-3 text-sm">
+                    <BankRow label="Ngân hàng" value={bankCode} />
+                    <BankRow label="Số tài khoản" value={bankAccount} />
+                    <BankRow label="Chủ tài khoản" value={bankAccountName} />
+                    <BankRow label="Số tiền" value={formatMoney(total)} strong />
+                    <BankRow label="Nội dung" value={transferContent} />
+                  </dl>
+                </div>
+              </div>
+            </section>
+          )}
           <label>
             <span className="text-sm font-semibold">Mã voucher</span>
             <div className="mt-2 flex gap-3">
@@ -143,7 +338,9 @@ export default function CheckoutPage() {
               </button>
             </div>
           </label>
-          {message && <p className="rounded-md bg-linen px-4 py-3 text-sm font-semibold">{message}</p>}
+          {message && !hasFieldErrors && (
+            <p className="rounded-md bg-linen px-4 py-3 text-sm font-semibold">{message}</p>
+          )}
           <button disabled={loading || !items.length} className="inline-flex h-14 items-center justify-center rounded-full bg-ink px-7 text-sm font-bold text-white disabled:opacity-60">
             {loading && <Loader2 className="mr-2 animate-spin" size={18} />}
             Xác nhận đặt hàng
@@ -195,6 +392,36 @@ function Row({ label, value, strong }) {
     <div className={strong ? "flex justify-between text-lg font-bold" : "flex justify-between"}>
       <span>{label}</span>
       <span>{value}</span>
+    </div>
+  );
+}
+
+function CheckoutField({ label, error, ...props }) {
+  return (
+    <label>
+      <span className="text-sm font-semibold">{label}</span>
+      <input
+        {...props}
+        data-field={props.name}
+        aria-invalid={Boolean(error)}
+        className={`mt-2 h-12 w-full rounded-md border px-4 outline-none ${
+          error ? "border-danger" : "border-black/10"
+        }`}
+      />
+      {error && <FieldError>{error}</FieldError>}
+    </label>
+  );
+}
+
+function FieldError({ children }) {
+  return <span className="mt-1.5 block text-xs font-semibold text-danger">{children}</span>;
+}
+
+function BankRow({ label, value, strong = false }) {
+  return (
+    <div className="flex items-start justify-between gap-5 border-b border-border pb-2 last:border-b-0">
+      <dt className="text-muted">{label}</dt>
+      <dd className={`text-right ${strong ? "text-base font-bold text-clay" : "font-semibold"}`}>{value}</dd>
     </div>
   );
 }

@@ -4,7 +4,7 @@ const CART_EVENT = "cart-updated";
 
 export function getCart() {
   try {
-    return JSON.parse(localStorage.getItem(CART_KEY) || "[]");
+    return JSON.parse(sessionStorage.getItem(CART_KEY) || "[]");
   } catch {
     return [];
   }
@@ -27,37 +27,37 @@ export function addToCart(product) {
         },
       ];
 
-  localStorage.setItem(CART_KEY, JSON.stringify(nextCart));
+  sessionStorage.setItem(CART_KEY, JSON.stringify(nextCart));
   window.dispatchEvent(new Event(CART_EVENT));
   return nextCart;
 }
 
 export function removeFromCart(productId) {
   const nextCart = getCart().filter((item) => Number(item.id) !== Number(productId));
-  localStorage.setItem(CART_KEY, JSON.stringify(nextCart));
+  sessionStorage.setItem(CART_KEY, JSON.stringify(nextCart));
   window.dispatchEvent(new Event(CART_EVENT));
   return nextCart;
 }
 
 export function clearCart() {
-  localStorage.removeItem(CART_KEY);
+  sessionStorage.removeItem(CART_KEY);
   window.dispatchEvent(new Event(CART_EVENT));
 }
 
 export function saveCheckoutItems(items) {
-  localStorage.setItem(CHECKOUT_KEY, JSON.stringify(items));
+  sessionStorage.setItem(CHECKOUT_KEY, JSON.stringify(items));
 }
 
 export function getCheckoutItems() {
   try {
-    return JSON.parse(localStorage.getItem(CHECKOUT_KEY) || "[]");
+    return JSON.parse(sessionStorage.getItem(CHECKOUT_KEY) || "[]");
   } catch {
     return [];
   }
 }
 
 export function clearCheckoutItems() {
-  localStorage.removeItem(CHECKOUT_KEY);
+  sessionStorage.removeItem(CHECKOUT_KEY);
 }
 
 export function onCartChange(callback) {

@@ -153,7 +153,7 @@ export default function StaffPage() {
             <TaskPanel overview={overview} />
           </section>
 
-          <section className="mt-6 grid gap-5 xl:grid-cols-[1.5fr_0.7fr]">
+          <section className="mt-6 grid gap-5 xl:grid-cols-[1.25fr_0.85fr_0.75fr]">
             <NewRequestsTable requests={latestRequests} navigate={navigate} />
             <ActivityPanel activities={activities} />
           </section>
@@ -165,7 +165,7 @@ export default function StaffPage() {
 
 function ChartCard({ title, action, children }) {
   return (
-    <section className="rounded-xl border border-border bg-white p-5 shadow-soft">
+    <section className="min-w-0 rounded-xl border border-border bg-white p-5 shadow-soft">
       <div className="flex items-center justify-between gap-3">
         <h2 className="font-display text-xl font-bold">{title}</h2>
         {action && <button className="rounded-md border border-border px-3 py-2 text-xs font-semibold text-muted">{action}</button>}
@@ -188,22 +188,22 @@ function RevenueChart({ orders }) {
 
   return (
     <svg viewBox="0 0 360 230" className="h-full w-full">
-      {[45, 85, 125, 165, 202].map((y) => <line key={y} x1="38" x2="340" y1={y} y2={y} stroke="#eee4db" />)}
-      <polygon points={area} fill="#f4e5d3" opacity="0.78" />
-      <polyline points={line} fill="none" stroke="#ad6a3e" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-      {coords.map((item) => <circle key={item.label} cx={item.x} cy={item.y} r="4" fill="#ad6a3e" />)}
-      {coords.map((item, index) => index % 2 === 0 && <text key={item.label} x={item.x} y="222" textAnchor="middle" fontSize="10" fill="#76665c">{item.label}</text>)}
+      {[45, 85, 125, 165, 202].map((y) => <line key={y} x1="38" x2="340" y1={y} y2={y} stroke="var(--color-border)" />)}
+      <polygon points={area} fill="var(--color-linen)" opacity="0.78" />
+      <polyline points={line} fill="none" stroke="var(--color-clay)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+      {coords.map((item) => <circle key={item.label} cx={item.x} cy={item.y} r="4" fill="var(--color-clay)" />)}
+      {coords.map((item, index) => index % 2 === 0 && <text key={item.label} x={item.x} y="222" textAnchor="middle" fontSize="10" fill="var(--color-muted)">{item.label}</text>)}
     </svg>
   );
 }
 
 function OrderDonut({ orders }) {
   const groups = [
-    ["Chờ xác nhận", orders.filter((item) => ["pending_confirmation", "pending_payment"].includes(item.status)).length, "#87632d"],
-    ["Đang xử lý", orders.filter((item) => item.status === "confirmed").length, "#e7bd78"],
-    ["Đang giao hàng", orders.filter((item) => item.status === "shipping").length, "#2f4b58"],
-    ["Hoàn thành", orders.filter((item) => item.status === "completed").length, "#527376"],
-    ["Đã hủy", orders.filter((item) => ["cancelled", "refunded"].includes(item.status)).length, "#a9b5aa"],
+    ["Chờ xác nhận", orders.filter((item) => ["pending_confirmation", "pending_payment"].includes(item.status)).length, "var(--color-warning)"],
+    ["Đang xử lý", orders.filter((item) => item.status === "confirmed").length, "var(--color-clay)"],
+    ["Đang giao hàng", orders.filter((item) => item.status === "shipping").length, "var(--color-info)"],
+    ["Hoàn thành", orders.filter((item) => item.status === "completed").length, "var(--color-success)"],
+    ["Đã hủy", orders.filter((item) => ["cancelled", "refunded"].includes(item.status)).length, "var(--color-linen)"],
   ];
   const total = Math.max(orders.length, groups.reduce((sum, item) => sum + item[1], 0), 1);
   let offset = 25;
@@ -249,7 +249,7 @@ function TaskPanel({ overview }) {
   ];
 
   return (
-    <section className="rounded-xl border border-border bg-white p-5 shadow-soft">
+    <section className="min-w-0 rounded-xl border border-border bg-white p-5 shadow-soft">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-xl font-bold">Công việc cần xử lý</h2>
         <Link to="/staff/consignments" className="text-xs font-bold text-clay">Xem tất cả</Link>
@@ -269,7 +269,7 @@ function TaskPanel({ overview }) {
 
 function NewRequestsTable({ requests, navigate }) {
   return (
-    <section className="rounded-xl border border-border bg-white p-5 shadow-soft">
+    <section className="min-w-0 rounded-xl border border-border bg-white p-5 shadow-soft xl:col-span-2">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-xl font-bold">Yêu cầu ký gửi mới</h2>
         <Link to="/staff/consignments" className="text-xs font-bold text-clay">Xem tất cả</Link>
@@ -325,9 +325,9 @@ function NewRequestsTable({ requests, navigate }) {
 
 function ActivityPanel({ activities }) {
   return (
-    <section className="rounded-xl border border-border bg-white p-5 shadow-soft">
-      <div className="flex items-center justify-between">
-        <h2 className="font-display text-xl font-bold">Hoạt động gần đây</h2>
+    <section className="min-w-0 rounded-xl border border-border bg-white p-5 shadow-soft">
+      <div className="flex items-start justify-between gap-3">
+        <h2 className="font-display text-xl font-bold leading-tight">Hoạt động gần đây</h2>
         <span className="text-xs font-bold text-clay">Xem tất cả</span>
       </div>
       <div className="mt-4 space-y-4">

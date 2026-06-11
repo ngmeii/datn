@@ -41,6 +41,7 @@ router.post("/register", async (req, res, next) => {
       id: result.insertId,
       full_name: data.fullName,
       email: data.email,
+      phone: data.phone,
       role: data.role,
     };
 
@@ -64,6 +65,7 @@ router.post("/login", async (req, res, next) => {
       id: user.user_id,
       full_name: user.full_name,
       email: user.email,
+      phone: user.phone,
       role: user.role,
     };
 
