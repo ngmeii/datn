@@ -5,9 +5,11 @@ import authRoutes from "./routes/auth.js";
 import productRoutes from "./routes/products.js";
 import consignmentRoutes from "./routes/consignments.js";
 import orderRoutes from "./routes/orders.js";
+import cartRoutes from "./routes/cart.js";
 import adminRoutes from "./routes/admin.js";
 import locationRoutes from "./routes/locations.js";
 import uploadRoutes, { uploadDirectory } from "./routes/uploads.js";
+import engagementRoutes from "./routes/engagement.js";
 import { query } from "./db.js";
 
 const app = express();
@@ -45,10 +47,12 @@ app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/consignments", consignmentRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/cart", cartRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/locations", locationRoutes);
 app.use("/api/uploads", express.static(uploadDirectory));
 app.use("/api/uploads", uploadRoutes);
+app.use("/api", engagementRoutes);
 
 app.use((error, _req, res, _next) => {
   if (error?.code === "LIMIT_FILE_SIZE") {
@@ -67,7 +71,7 @@ app.use((error, _req, res, _next) => {
   return res.status(500).json({ message: "Lỗi máy chủ." });
 });
 
-ensureOrderSchema()
+Promise.all([ensureOrderSchema(), ensureSystemSettingsSchema(), ensureEngagementSchema(), ensureCartSchema()])
   .then(() => {
     app.listen(port, () => {
       console.log(`API server running at http://localhost:${port}`);
@@ -100,4 +104,69 @@ async function ensureOrderSchema() {
     }
     await query(`ALTER TABLE orders MODIFY COLUMN buyer_id ${columnType} NULL`);
   }
+}
+
+async function ensureSystemSettingsSchema() {
+  await query(`
+    CREATE TABLE IF NOT EXISTS system_settings (
+      setting_key VARCHAR(100) PRIMARY KEY,
+      setting_value TEXT NOT NULL,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )
+  `);
+}
+
+async function ensureEngagementSchema() {
+  await query(`
+    CREATE TABLE IF NOT EXISTS newsletter_subscribers (
+      subscriber_id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+      email VARCHAR(190) NOT NULL UNIQUE,
+      status ENUM('active', 'unsubscribed') NOT NULL DEFAULT 'active',
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS report_exports (
+      export_id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+      user_id BIGINT UNSIGNED NULL,
+      report_type VARCHAR(50) NOT NULL DEFAULT 'overview',
+      period_start DATE NOT NULL,
+      period_end DATE NOT NULL,
+      file_name VARCHAR(255) NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_report_exports_user_created (user_id, created_at)
+    )
+  `);
+}
+
+async function ensureCartSchema() {
+  await query(`
+    CREATE TABLE IF NOT EXISTS carts (
+      cart_id INT NOT NULL AUTO_INCREMENT,
+      user_id INT NOT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (cart_id),
+      UNIQUE KEY uq_carts_user_id (user_id),
+      CONSTRAINT fk_cart_user FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE
+    )
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS cart_items (
+      cart_item_id INT NOT NULL AUTO_INCREMENT,
+      cart_id INT NOT NULL,
+      product_id INT NOT NULL,
+      quantity INT NOT NULL DEFAULT 1,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (cart_item_id),
+      UNIQUE KEY uq_cart_items_cart_product (cart_id, product_id),
+      KEY fk_cart_items_product (product_id),
+      CONSTRAINT fk_cart_items_cart FOREIGN KEY (cart_id) REFERENCES carts (cart_id) ON DELETE CASCADE,
+      CONSTRAINT fk_cart_items_product FOREIGN KEY (product_id) REFERENCES products (product_id) ON DELETE CASCADE
+    )
+  `);
 }

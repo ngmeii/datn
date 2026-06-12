@@ -13,13 +13,13 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, formatMoney } from "../lib/api.js";
 
-const categories = [
-  ["Váy", "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=480&q=90", "1"],
-  ["Áo", "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=480&q=90", "2"],
-  ["Túi", "https://images.unsplash.com/photo-1594223274512-ad4803739b7c?auto=format&fit=crop&w=480&q=90", "3"],
-  ["Giày", "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&w=480&q=90", "4"],
-  ["Phụ kiện", "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&w=480&q=90", "5"],
-  ["Đồ lifestyle", "https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?auto=format&fit=crop&w=480&q=90", ""],
+const categoryImages = [
+  "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=480&q=90",
+  "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=480&q=90",
+  "https://images.unsplash.com/photo-1594223274512-ad4803739b7c?auto=format&fit=crop&w=480&q=90",
+  "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&w=480&q=90",
+  "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&w=480&q=90",
+  "https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?auto=format&fit=crop&w=480&q=90",
 ];
 
 const values = [
@@ -47,20 +47,31 @@ const values = [
 
 export default function HomePage() {
   const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [featuredLoading, setFeaturedLoading] = useState(true);
+  const [newsletterEmail, setNewsletterEmail] = useState("");
+  const [newsletterMessage, setNewsletterMessage] = useState("");
+  const [newsletterLoading, setNewsletterLoading] = useState(false);
 
   useEffect(() => {
     let mounted = true;
 
-    api("/products")
-      .then((data) => {
+    Promise.all([api("/products"), api("/categories")])
+      .then(([productData, categoryData]) => {
         if (mounted) {
-          setFeaturedProducts(data.slice(0, 5));
+          setFeaturedProducts(productData.slice(0, 5));
+          setCategories(
+            categoryData.map((category, index) => ({
+              ...category,
+              image: categoryImages[index % categoryImages.length],
+            })),
+          );
         }
       })
       .catch(() => {
         if (mounted) {
           setFeaturedProducts([]);
+          setCategories([]);
         }
       })
       .finally(() => {
@@ -73,6 +84,24 @@ export default function HomePage() {
       mounted = false;
     };
   }, []);
+
+  async function subscribeNewsletter(event) {
+    event.preventDefault();
+    setNewsletterLoading(true);
+    setNewsletterMessage("");
+    try {
+      const result = await api("/newsletter", {
+        method: "POST",
+        body: JSON.stringify({ email: newsletterEmail }),
+      });
+      setNewsletterEmail("");
+      setNewsletterMessage(result.message);
+    } catch (error) {
+      setNewsletterMessage(error.message);
+    } finally {
+      setNewsletterLoading(false);
+    }
+  }
 
   return (
     <main className="bg-cream text-ink">
@@ -143,12 +172,12 @@ export default function HomePage() {
         />
 
         <div className="mt-8 grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-6">
-          {categories.map(([name, image, categoryId]) => (
-            <Link key={name} to={categoryId ? `/products?category=${categoryId}` : "/products"} className="group text-center">
+          {categories.map((category) => (
+            <Link key={category.id} to={`/products?category=${category.id}`} className="group text-center">
               <div className="mx-auto h-[170px] w-[170px] overflow-hidden rounded-full border border-black/10 bg-white p-2 shadow-sm transition duration-300 group-hover:-translate-y-1 group-hover:shadow-soft max-xl:h-[145px] max-xl:w-[145px] max-md:h-[128px] max-md:w-[128px]">
-                <img src={image} alt={name} className="h-full w-full rounded-full object-cover" />
+                <img src={category.image} alt={category.name} className="h-full w-full rounded-full object-cover" />
               </div>
-              <p className="mt-4 text-[16px] font-semibold">{name}</p>
+              <p className="mt-4 text-[16px] font-semibold">{category.name}</p>
             </Link>
           ))}
         </div>
@@ -239,10 +268,22 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="flex min-w-[290px] flex-1 overflow-hidden rounded-md border border-black/10 bg-white md:max-w-[460px]">
-            <input className="min-w-0 flex-1 bg-transparent px-5 outline-none" placeholder="Email của bạn" />
-            <button className="bg-ink px-9 text-sm font-bold text-white">Đăng ký</button>
-          </div>
+          <form onSubmit={subscribeNewsletter} className="min-w-[290px] flex-1 md:max-w-[460px]">
+            <div className="flex overflow-hidden rounded-md border border-black/10 bg-white">
+              <input
+                type="email"
+                required
+                value={newsletterEmail}
+                onChange={(event) => setNewsletterEmail(event.target.value)}
+                className="min-w-0 flex-1 bg-transparent px-5 outline-none"
+                placeholder="Email của bạn"
+              />
+              <button disabled={newsletterLoading} className="bg-ink px-9 text-sm font-bold text-white disabled:opacity-60">
+                {newsletterLoading ? "Đang lưu..." : "Đăng ký"}
+              </button>
+            </div>
+            {newsletterMessage ? <p className="mt-2 text-xs font-medium text-clay">{newsletterMessage}</p> : null}
+          </form>
         </div>
       </section>
 

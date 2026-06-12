@@ -1,10 +1,11 @@
-import { ChevronDown, Heart, Loader2, ShoppingBag } from "lucide-react";
+import { ChevronDown, Loader2, ShoppingBag } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, formatMoney } from "../lib/api.js";
 import { addToCart } from "../lib/cart.js";
 
 export default function ProductPage() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const category = searchParams.get("category") || "";
   const [products, setProducts] = useState([]);
@@ -22,9 +23,17 @@ export default function ProductPage() {
       .finally(() => setLoading(false));
   }, [category]);
 
-  function handleAddToCart(product) {
-    addToCart(product);
-    setMessage(`Đã thêm "${product.name}" vào giỏ hàng.`);
+  async function handleAddToCart(product) {
+    try {
+      await addToCart(product);
+      setMessage(`Đã thêm "${product.name}" vào giỏ hàng.`);
+    } catch (error) {
+      setMessage(error.message);
+    }
+  }
+
+  function handleBuyNow(productId) {
+    navigate(`/checkout?productId=${productId}`);
   }
 
   function updateCategory(nextCategory) {
@@ -80,23 +89,32 @@ export default function ProductPage() {
             {products.map((product) => (
               <article key={product.id} className="group">
                 <Link to={`/products/${product.id}`} className="block">
-                  <div className="relative overflow-hidden rounded-md bg-linen">
-                    <img className="aspect-[0.76] w-full object-cover transition group-hover:scale-[1.04]" src={product.image_url} alt={product.name} />
-                    <span className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-full bg-white">
-                      <Heart size={18} />
-                    </span>
+                  <div className="overflow-hidden rounded-md bg-linen">
+                    <img
+                      className="aspect-[0.76] w-full object-cover transition group-hover:scale-[1.04]"
+                      src={product.image_url}
+                      alt={product.name}
+                    />
                   </div>
                   <p className="mt-5 text-xs font-bold uppercase text-ink/45">{product.category_name}</p>
                   <h2 className="mt-1 text-lg font-semibold">{product.name}</h2>
                   <p className="mt-2 text-sm font-bold">{formatMoney(product.price)}</p>
                 </Link>
-                <button
-                  className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-ink text-sm font-bold hover:bg-ink hover:text-white"
-                  onClick={() => handleAddToCart(product)}
-                >
-                  <ShoppingBag size={17} />
-                  Thêm vào giỏ
-                </button>
+                <div className="mt-4 grid gap-3">
+                  <button
+                    className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-ink text-sm font-bold hover:bg-ink hover:text-white"
+                    onClick={() => handleAddToCart(product)}
+                  >
+                    <ShoppingBag size={17} />
+                    Thêm vào giỏ
+                  </button>
+                  <button
+                    className="inline-flex h-11 w-full items-center justify-center rounded-full bg-ink text-sm font-bold text-white"
+                    onClick={() => handleBuyNow(product.id)}
+                  >
+                    Mua ngay
+                  </button>
+                </div>
               </article>
             ))}
           </div>

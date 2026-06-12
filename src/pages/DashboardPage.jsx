@@ -92,7 +92,7 @@ export default function DashboardPage({ staffOnly = false }) {
     <main className="site-container py-12">
       <div className="flex flex-wrap items-end justify-between gap-5">
         <div>
-          <p className="text-sm font-bold uppercase text-clay">{isStaff ? "Trang nhân viên/admin" : "Tài khoản"}</p>
+          <p className="text-sm font-bold uppercase text-clay">{isStaff ? "Trang nhân viên/admin" : "Đơn hàng"}</p>
           <h1 className="mt-3 font-display text-5xl font-bold">Xin chào, {user.name || user.full_name}</h1>
         </div>
         {!isStaff && (

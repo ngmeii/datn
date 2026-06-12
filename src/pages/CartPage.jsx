@@ -10,9 +10,10 @@ export default function CartPage() {
   const [selectedIds, setSelectedIds] = useState([]);
 
   useEffect(() => {
-    const cart = getCart();
-    setItems(cart);
-    setSelectedIds(cart.map((item) => Number(item.id)));
+    getCart().then((cart) => {
+      setItems(cart);
+      setSelectedIds(cart.map((item) => Number(item.id)));
+    });
   }, []);
 
   const selectedItems = useMemo(
@@ -28,8 +29,8 @@ export default function CartPage() {
     );
   }
 
-  function handleRemove(productId) {
-    const nextCart = removeFromCart(productId);
+  async function handleRemove(productId) {
+    const nextCart = await removeFromCart(productId);
     setItems(nextCart);
     setSelectedIds((current) => current.filter((id) => id !== Number(productId)));
   }

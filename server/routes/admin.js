@@ -17,9 +17,19 @@ const createUserSchema = z.object({
   role: z.enum(["customer", "staff", "admin"]).default("customer"),
 });
 
+const updateUserSchema = z.object({
+  fullName: z.string().trim().min(2).max(150).optional(),
+  email: z.string().trim().email().max(255).optional(),
+  phone: z.string().trim().max(20).optional(),
+  role: z.enum(["customer", "staff", "admin"]).optional(),
+  status: z.enum(["active", "inactive", "banned"]).optional(),
+});
+
 const createCategorySchema = z.object({
   name: z.string().trim().min(2).max(150),
 });
+
+const updateCategorySchema = createCategorySchema.partial();
 
 const createVoucherSchema = z.object({
   code: z.string().trim().min(2).max(50).transform((value) => value.toUpperCase()),
@@ -28,6 +38,64 @@ const createVoucherSchema = z.object({
   minOrderValue: z.coerce.number().nonnegative().default(0),
   endDate: z.string().date(),
 });
+
+const updateVoucherSchema = z.object({
+  code: z.string().trim().min(2).max(50).transform((value) => value.toUpperCase()).optional(),
+  discountType: z.enum(["percent", "fixed"]).optional(),
+  discountValue: z.coerce.number().positive().optional(),
+  minOrderValue: z.coerce.number().nonnegative().optional(),
+  endDate: z.string().date().optional(),
+  status: z.enum(["active", "inactive"]).optional(),
+});
+
+const systemSettingsSchema = z.object({
+  storeName: z.string().trim().min(2).max(120),
+  contactEmail: z.string().trim().email().max(190),
+  phone: z.string().trim().min(8).max(30),
+  address: z.string().trim().min(5).max(500),
+  logoUrl: z.string().trim().max(500).default(""),
+  currency: z.enum(["VND", "USD"]).default("VND"),
+  timezone: z.string().trim().min(2).max(80).default("Asia/Ho_Chi_Minh"),
+  orderPrefix: z.string().trim().min(1).max(10).default("DH"),
+  senderName: z.string().trim().min(2).max(120).default("The Heirloom"),
+  senderEmail: z.string().trim().email().max(190),
+  emailNotifications: z.boolean().default(true),
+  orderNotifications: z.boolean().default(true),
+  consignmentNotifications: z.boolean().default(true),
+  privacyPolicy: z.string().max(10000).default(""),
+  terms: z.string().max(10000).default(""),
+  returnPolicy: z.string().max(10000).default(""),
+  autoBackup: z.boolean().default(false),
+  backupFrequency: z.enum(["daily", "weekly", "monthly"]).default("weekly"),
+});
+
+const reportExportSchema = z.object({
+  reportType: z.string().trim().min(2).max(50).default("overview"),
+  periodStart: z.string().date(),
+  periodEnd: z.string().date(),
+  fileName: z.string().trim().min(3).max(255),
+});
+
+const defaultSystemSettings = {
+  storeName: "The Heirloom",
+  contactEmail: "contact@theheirloom.vn",
+  phone: "(+84) 28 3822 6699",
+  address: "72 Lê Thánh Tôn, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh, Việt Nam",
+  logoUrl: "",
+  currency: "VND",
+  timezone: "Asia/Ho_Chi_Minh",
+  orderPrefix: "DH",
+  senderName: "The Heirloom",
+  senderEmail: "noreply@theheirloom.vn",
+  emailNotifications: true,
+  orderNotifications: true,
+  consignmentNotifications: true,
+  privacyPolicy: "",
+  terms: "",
+  returnPolicy: "",
+  autoBackup: false,
+  backupFrequency: "weekly",
+};
 
 router.get("/summary", requireAuth, requireRole("staff", "admin"), async (_req, res, next) => {
   try {
@@ -248,9 +316,18 @@ router.get("/overview", ...adminOnly, async (_req, res, next) => {
           (SELECT COUNT(*) FROM categories) AS category_count,
           (SELECT COUNT(*) FROM vouchers
            WHERE status = 'active' AND start_date <= NOW() AND end_date >= NOW()) AS active_voucher_count,
+          (SELECT COUNT(*) FROM vouchers
+           WHERE status = 'active'
+             AND end_date >= NOW()
+             AND end_date < DATE_ADD(NOW(), INTERVAL 7 DAY)) AS expiring_voucher_count,
           (SELECT COALESCE(SUM(total_amount), 0) FROM orders
            WHERE order_status = 'completed'
              AND created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')) AS monthly_revenue,
+          (SELECT COUNT(*) FROM orders
+           WHERE discount_amount > 0
+             AND created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')) AS monthly_voucher_usage_count,
+          (SELECT COALESCE(SUM(discount_amount), 0) FROM orders
+           WHERE created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')) AS monthly_discount_total,
           (SELECT COUNT(*) FROM users
            WHERE created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')) AS new_account_count,
           (SELECT COUNT(*) FROM categories
@@ -264,23 +341,23 @@ router.get("/overview", ...adminOnly, async (_req, res, next) => {
         SELECT user_id AS id,
                full_name,
                email,
+               phone,
                role,
                status,
                created_at
         FROM users
         ORDER BY created_at DESC, user_id DESC
-        LIMIT 5
       `),
       query(`
         SELECT c.category_id AS id,
                c.name,
                COUNT(p.product_id) AS product_count,
-               MAX(JSON_UNQUOTE(JSON_EXTRACT(p.images, '$[0]'))) AS image_url
+               MAX(JSON_UNQUOTE(JSON_EXTRACT(p.images, '$[0]'))) AS image_url,
+               MAX(COALESCE(p.updated_at, p.created_at)) AS updated_at
         FROM categories c
         LEFT JOIN products p ON p.category_id = c.category_id
         GROUP BY c.category_id, c.name
         ORDER BY product_count DESC, c.name
-        LIMIT 5
       `),
       query(`
         SELECT voucher_id AS id,
@@ -288,11 +365,12 @@ router.get("/overview", ...adminOnly, async (_req, res, next) => {
                discount_type,
                discount_value,
                min_order_value,
+               start_date,
                end_date,
-               status
+               status,
+               created_at
         FROM vouchers
         ORDER BY created_at DESC, voucher_id DESC
-        LIMIT 5
       `),
       query(`
         SELECT DATE(created_at) AS date,
@@ -345,6 +423,114 @@ router.get("/overview", ...adminOnly, async (_req, res, next) => {
   }
 });
 
+router.get("/report-exports", requireAuth, requireRole("staff", "admin"), async (req, res, next) => {
+  try {
+    const limit = Math.min(20, Math.max(1, Number(req.query.limit || 5)));
+    return res.json(
+      await query(
+        `SELECT export_id AS id,
+                report_type,
+                period_start,
+                period_end,
+                file_name,
+                created_at
+         FROM report_exports
+         WHERE user_id = :userId
+         ORDER BY created_at DESC, export_id DESC
+         LIMIT ${limit}`,
+        { userId: req.user.id },
+      ),
+    );
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post("/report-exports", requireAuth, requireRole("staff", "admin"), async (req, res, next) => {
+  try {
+    const data = reportExportSchema.parse(req.body);
+    const result = await query(
+      `INSERT INTO report_exports
+       (user_id, report_type, period_start, period_end, file_name, created_at)
+       VALUES (:userId, :reportType, :periodStart, :periodEnd, :fileName, NOW())`,
+      { ...data, userId: req.user.id },
+    );
+    return res.status(201).json({
+      id: result.insertId,
+      message: "Đã ghi nhận lịch sử xuất báo cáo.",
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get("/settings", ...adminOnly, async (_req, res, next) => {
+  try {
+    const rows = await query("SELECT setting_key, setting_value, updated_at FROM system_settings");
+    const settings = { ...defaultSystemSettings };
+    let updatedAt = null;
+
+    for (const row of rows) {
+      if (!(row.setting_key in settings)) continue;
+      settings[row.setting_key] = parseSettingValue(row.setting_value, settings[row.setting_key]);
+      if (!updatedAt || new Date(row.updated_at) > new Date(updatedAt)) updatedAt = row.updated_at;
+    }
+
+    return res.json({ settings, updatedAt });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.put("/settings", ...adminOnly, async (req, res, next) => {
+  try {
+    const settings = systemSettingsSchema.parse(req.body);
+    await Promise.all(
+      Object.entries(settings).map(([key, value]) =>
+        query(
+          `INSERT INTO system_settings (setting_key, setting_value, updated_at)
+           VALUES (:key, :value, NOW())
+           ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = NOW()`,
+          { key, value: JSON.stringify(value) },
+        ),
+      ),
+    );
+
+    return res.json({ message: "Đã lưu cài đặt hệ thống.", settings });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get("/settings/backup", ...adminOnly, async (_req, res, next) => {
+  try {
+    const [settingsRows, [counts]] = await Promise.all([
+      query("SELECT setting_key, setting_value, updated_at FROM system_settings ORDER BY setting_key"),
+      query(`
+        SELECT
+          (SELECT COUNT(*) FROM users) AS users,
+          (SELECT COUNT(*) FROM categories) AS categories,
+          (SELECT COUNT(*) FROM products) AS products,
+          (SELECT COUNT(*) FROM orders) AS orders,
+          (SELECT COUNT(*) FROM consignment_items) AS consignments,
+          (SELECT COUNT(*) FROM vouchers) AS vouchers
+      `),
+    ]);
+
+    return res.json({
+      generatedAt: new Date().toISOString(),
+      application: "The Heirloom",
+      counts,
+      settings: settingsRows.reduce((result, row) => {
+        result[row.setting_key] = parseSettingValue(row.setting_value, null);
+        return result;
+      }, {}),
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 router.post("/users", ...adminOnly, async (req, res, next) => {
   try {
     const data = createUserSchema.parse(req.body);
@@ -365,6 +551,34 @@ router.post("/users", ...adminOnly, async (req, res, next) => {
   }
 });
 
+router.patch("/users/:id", ...adminOnly, async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const data = updateUserSchema.parse(req.body);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ message: "Tài khoản không hợp lệ." });
+    if (id === Number(req.user.id) && data.status && data.status !== "active") {
+      return res.status(409).json({ message: "Không thể khóa tài khoản Admin đang đăng nhập." });
+    }
+
+    const fields = [];
+    const params = { id };
+    const mapping = { fullName: "full_name", email: "email", phone: "phone", role: "role", status: "status" };
+    for (const [key, column] of Object.entries(mapping)) {
+      if (data[key] === undefined) continue;
+      fields.push(`${column} = :${key}`);
+      params[key] = data[key];
+    }
+    if (!fields.length) return res.status(400).json({ message: "Không có dữ liệu cần cập nhật." });
+
+    const result = await query(`UPDATE users SET ${fields.join(", ")}, updated_at = NOW() WHERE user_id = :id`, params);
+    if (!result.affectedRows) return res.status(404).json({ message: "Không tìm thấy tài khoản." });
+    return res.json({ message: "Đã cập nhật tài khoản." });
+  } catch (error) {
+    if (error?.code === "ER_DUP_ENTRY") return res.status(409).json({ message: "Email đã được sử dụng." });
+    return next(error);
+  }
+});
+
 router.post("/categories", ...adminOnly, async (req, res, next) => {
   try {
     const data = createCategorySchema.parse(req.body);
@@ -374,6 +588,39 @@ router.post("/categories", ...adminOnly, async (req, res, next) => {
     );
 
     return res.status(201).json({ id: result.insertId, message: "Đã thêm danh mục." });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.patch("/categories/:id", ...adminOnly, async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const data = updateCategorySchema.parse(req.body);
+    if (!data.name) return res.status(400).json({ message: "Tên danh mục không hợp lệ." });
+    const result = await query("UPDATE categories SET name = :name WHERE category_id = :id", { id, name: data.name });
+    if (!result.affectedRows) return res.status(404).json({ message: "Không tìm thấy danh mục." });
+    return res.json({ message: "Đã cập nhật danh mục." });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.delete("/categories/:id", ...adminOnly, async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const [usage] = await query(
+      `SELECT
+         (SELECT COUNT(*) FROM products WHERE category_id = :id) +
+         (SELECT COUNT(*) FROM consignment_items WHERE category_id = :id) AS total`,
+      { id },
+    );
+    if (Number(usage?.total || 0) > 0) {
+      return res.status(409).json({ message: "Danh mục đang có sản phẩm hoặc yêu cầu ký gửi nên không thể xóa." });
+    }
+    const result = await query("DELETE FROM categories WHERE category_id = :id", { id });
+    if (!result.affectedRows) return res.status(404).json({ message: "Không tìm thấy danh mục." });
+    return res.json({ message: "Đã xóa danh mục." });
   } catch (error) {
     return next(error);
   }
@@ -401,6 +648,48 @@ router.post("/vouchers", ...adminOnly, async (req, res, next) => {
     return next(error);
   }
 });
+
+router.patch("/vouchers/:id", ...adminOnly, async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const data = updateVoucherSchema.parse(req.body);
+    if (data.discountType === "percent" && Number(data.discountValue || 0) > 100) {
+      return res.status(400).json({ message: "Mức giảm phần trăm không được vượt quá 100%." });
+    }
+
+    const fields = [];
+    const params = { id };
+    const mapping = {
+      code: "code",
+      discountType: "discount_type",
+      discountValue: "discount_value",
+      minOrderValue: "min_order_value",
+      endDate: "end_date",
+      status: "status",
+    };
+    for (const [key, column] of Object.entries(mapping)) {
+      if (data[key] === undefined) continue;
+      fields.push(`${column} = :${key}`);
+      params[key] = data[key];
+    }
+    if (!fields.length) return res.status(400).json({ message: "Không có dữ liệu cần cập nhật." });
+
+    const result = await query(`UPDATE vouchers SET ${fields.join(", ")} WHERE voucher_id = :id`, params);
+    if (!result.affectedRows) return res.status(404).json({ message: "Không tìm thấy voucher." });
+    return res.json({ message: "Đã cập nhật voucher." });
+  } catch (error) {
+    if (error?.code === "ER_DUP_ENTRY") return res.status(409).json({ message: "Mã voucher đã tồn tại." });
+    return next(error);
+  }
+});
+
+function parseSettingValue(value, fallback) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value ?? fallback;
+  }
+}
 
 function getCurrentMonthPeriod() {
   const now = new Date();

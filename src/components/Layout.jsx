@@ -9,16 +9,24 @@ const navItems = [
   { to: "/", label: "Trang chủ", exact: true },
   { to: "/products", label: "Sản phẩm" },
   { to: "/consign", label: "Ký gửi" },
-  { to: "/dashboard", label: "Tài khoản" },
+  { to: "/dashboard", label: "Đơn hàng" },
   { to: "/#footer", label: "Liên hệ", hashLink: true },
 ];
 
 export default function Layout() {
   const location = useLocation();
   const [user] = useState(() => getCurrentUser());
-  const [cartCount, setCartCount] = useState(() => getCart().length);
+  const [cartCount, setCartCount] = useState(0);
 
-  useEffect(() => onCartChange(() => setCartCount(getCart().length)), []);
+  useEffect(() => {
+    async function syncCartCount() {
+      const cart = await getCart();
+      setCartCount(cart.length);
+    }
+
+    syncCartCount();
+    return onCartChange(syncCartCount);
+  }, [user]);
 
   useEffect(() => {
     if (!location.hash) return;
