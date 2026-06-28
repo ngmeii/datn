@@ -4,6 +4,7 @@ import AdminPage from "./pages/AdminPage.jsx";
 import CartPage from "./pages/CartPage.jsx";
 import CheckoutPage from "./pages/CheckoutPage.jsx";
 import ConsignPage from "./pages/ConsignPage.jsx";
+import CustomerConsignmentDetailPage from "./pages/CustomerConsignmentDetailPage.jsx";
 import DashboardPage from "./pages/DashboardPage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
@@ -13,10 +14,12 @@ import ProductPage from "./pages/ProductPage.jsx";
 import StaffConsignmentPage from "./pages/StaffConsignmentPage.jsx";
 import StaffConsignmentDetailPage from "./pages/StaffConsignmentDetailPage.jsx";
 import StaffOrderPage from "./pages/StaffOrderPage.jsx";
+import StaffOrderDetailPage from "./pages/StaffOrderDetailPage.jsx";
 import StaffPage from "./pages/StaffPage.jsx";
 import StaffProductDetailPage from "./pages/StaffProductDetailPage.jsx";
 import StaffProductPage from "./pages/StaffProductPage.jsx";
 import StaffReportPage from "./pages/StaffReportPage.jsx";
+import AccountPage from "./pages/AccountPage.jsx";
 import { getCurrentUser } from "./lib/api.js";
 
 export default function App() {
@@ -27,7 +30,9 @@ export default function App() {
       <Route path="/staff" element={<RequireAuth><StaffPage /></RequireAuth>} />
       <Route path="/staff/consignments" element={<RequireAuth><StaffConsignmentPage /></RequireAuth>} />
       <Route path="/staff/consignments/:id" element={<RequireAuth><StaffConsignmentDetailPage /></RequireAuth>} />
+      <Route path="/staff/consignment-requests/:id" element={<RequireAuth><StaffConsignmentDetailPage /></RequireAuth>} />
       <Route path="/staff/orders" element={<RequireAuth><StaffOrderPage /></RequireAuth>} />
+      <Route path="/staff/orders/:id" element={<RequireAuth><StaffOrderDetailPage /></RequireAuth>} />
       <Route path="/staff/products" element={<RequireAuth><StaffProductPage /></RequireAuth>} />
       <Route path="/staff/products/:id" element={<RequireAuth><StaffProductDetailPage /></RequireAuth>} />
       <Route path="/staff/reports" element={<RequireAuth><StaffReportPage /></RequireAuth>} />
@@ -52,6 +57,21 @@ export default function App() {
         <Route path="/cart" element={<CartPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/orders/:id" element={<RequireAuth><OrderDetailPage /></RequireAuth>} />
+        <Route path="/account/consignments/:id" element={<RequireAuth><CustomerConsignmentDetailPage /></RequireAuth>} />
+        <Route
+          path="/account"
+          element={
+            <RequireAuth
+              prompt={{
+                title: "Đăng nhập để xem tài khoản",
+                message: "Bạn cần đăng nhập để xem thông tin tài khoản, đổi mật khẩu và theo dõi giải ngân.",
+                action: "Đăng nhập",
+              }}
+            >
+              <AccountPage />
+            </RequireAuth>
+          }
+        />
         <Route
           path="/dashboard"
           element={

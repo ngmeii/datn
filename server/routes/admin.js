@@ -27,23 +27,43 @@ const updateUserSchema = z.object({
 
 const createCategorySchema = z.object({
   name: z.string().trim().min(2).max(150),
+  description: z.string().trim().max(1000).optional().default(""),
+  status: z.preprocess((value) => {
+    if (value === undefined || value === null || value === "") return "active";
+    if (value === 1 || value === true || value === "1") return "active";
+    if (value === 0 || value === false || value === "0") return "inactive";
+    const normalized = String(value).trim().toLowerCase();
+    if (normalized === "locked" || normalized === "disabled") return "inactive";
+    return normalized;
+  }, z.enum(["active", "inactive"])).default("active"),
 });
 
 const updateCategorySchema = createCategorySchema.partial();
 
 const createVoucherSchema = z.object({
   code: z.string().trim().min(2).max(50).transform((value) => value.toUpperCase()),
+  name: z.string().trim().max(150).optional().default(""),
+  description: z.string().trim().max(1000).optional().default(""),
   discountType: z.enum(["percent", "fixed"]),
   discountValue: z.coerce.number().positive(),
   minOrderValue: z.coerce.number().nonnegative().default(0),
+  maxDiscount: z.preprocess((value) => (value === undefined || value === null || value === "" ? null : value), z.coerce.number().nonnegative().nullable()).default(null),
+  usageLimit: z.preprocess((value) => (value === undefined || value === null || value === "" ? null : value), z.coerce.number().int().positive().nullable()).default(null),
+  startDate: z.string().date().default(() => new Date().toISOString().slice(0, 10)),
   endDate: z.string().date(),
+  status: z.enum(["active", "inactive"]).default("active"),
 });
 
 const updateVoucherSchema = z.object({
   code: z.string().trim().min(2).max(50).transform((value) => value.toUpperCase()).optional(),
+  name: z.string().trim().max(150).optional(),
+  description: z.string().trim().max(1000).optional(),
   discountType: z.enum(["percent", "fixed"]).optional(),
   discountValue: z.coerce.number().positive().optional(),
   minOrderValue: z.coerce.number().nonnegative().optional(),
+  maxDiscount: z.preprocess((value) => (value === undefined || value === "" ? undefined : value), z.coerce.number().nonnegative().nullable()).optional(),
+  usageLimit: z.preprocess((value) => (value === undefined || value === "" ? undefined : value), z.coerce.number().int().positive().nullable()).optional(),
+  startDate: z.string().date().optional(),
   endDate: z.string().date().optional(),
   status: z.enum(["active", "inactive"]).optional(),
 });
@@ -351,24 +371,33 @@ router.get("/overview", ...adminOnly, async (_req, res, next) => {
       query(`
         SELECT c.category_id AS id,
                c.name,
+               COALESCE(c.description, '') AS description,
+               COALESCE(c.status, 'active') AS status,
                COUNT(p.product_id) AS product_count,
                MAX(JSON_UNQUOTE(JSON_EXTRACT(p.images, '$[0]'))) AS image_url,
-               MAX(COALESCE(p.updated_at, p.created_at)) AS updated_at
+               c.created_at,
+               COALESCE(c.updated_at, c.created_at) AS updated_at
         FROM categories c
         LEFT JOIN products p ON p.category_id = c.category_id
-        GROUP BY c.category_id, c.name
+        GROUP BY c.category_id, c.name, c.description, c.status, c.created_at, c.updated_at
         ORDER BY product_count DESC, c.name
       `),
       query(`
         SELECT voucher_id AS id,
                code,
+               COALESCE(name, '') AS name,
+               COALESCE(description, '') AS description,
                discount_type,
                discount_value,
                min_order_value,
+               max_discount,
+               usage_limit,
+               used_count,
                start_date,
                end_date,
                status,
-               created_at
+               created_at,
+               COALESCE(updated_at, created_at) AS updated_at
         FROM vouchers
         ORDER BY created_at DESC, voucher_id DESC
       `),
@@ -583,7 +612,8 @@ router.post("/categories", ...adminOnly, async (req, res, next) => {
   try {
     const data = createCategorySchema.parse(req.body);
     const result = await query(
-      "INSERT INTO categories (name, created_at) VALUES (:name, NOW())",
+      `INSERT INTO categories (name, description, status, created_at, updated_at)
+       VALUES (:name, :description, :status, NOW(), NOW())`,
       data,
     );
 
@@ -597,8 +627,15 @@ router.patch("/categories/:id", ...adminOnly, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const data = updateCategorySchema.parse(req.body);
-    if (!data.name) return res.status(400).json({ message: "Tên danh mục không hợp lệ." });
-    const result = await query("UPDATE categories SET name = :name WHERE category_id = :id", { id, name: data.name });
+    const fields = [];
+    const params = { id };
+    for (const key of ["name", "description", "status"]) {
+      if (data[key] === undefined) continue;
+      fields.push(`${key} = :${key}`);
+      params[key] = data[key];
+    }
+    if (!fields.length) return res.status(400).json({ message: "Không có dữ liệu cần cập nhật." });
+    const result = await query(`UPDATE categories SET ${fields.join(", ")}, updated_at = NOW() WHERE category_id = :id`, params);
     if (!result.affectedRows) return res.status(404).json({ message: "Không tìm thấy danh mục." });
     return res.json({ message: "Đã cập nhật danh mục." });
   } catch (error) {
@@ -609,14 +646,9 @@ router.patch("/categories/:id", ...adminOnly, async (req, res, next) => {
 router.delete("/categories/:id", ...adminOnly, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
-    const [usage] = await query(
-      `SELECT
-         (SELECT COUNT(*) FROM products WHERE category_id = :id) +
-         (SELECT COUNT(*) FROM consignment_items WHERE category_id = :id) AS total`,
-      { id },
-    );
-    if (Number(usage?.total || 0) > 0) {
-      return res.status(409).json({ message: "Danh mục đang có sản phẩm hoặc yêu cầu ký gửi nên không thể xóa." });
+    const [usage] = await query("SELECT COUNT(*) AS product_count FROM products WHERE category_id = :id", { id });
+    if (Number(usage?.product_count || 0) > 0) {
+      return res.status(409).json({ message: "Không thể xóa danh mục đang có sản phẩm." });
     }
     const result = await query("DELETE FROM categories WHERE category_id = :id", { id });
     if (!result.affectedRows) return res.status(404).json({ message: "Không tìm thấy danh mục." });
@@ -635,8 +667,8 @@ router.post("/vouchers", ...adminOnly, async (req, res, next) => {
 
     const result = await query(
       `INSERT INTO vouchers
-       (code, discount_type, discount_value, min_order_value, start_date, end_date, status, created_at)
-       VALUES (:code, :discountType, :discountValue, :minOrderValue, NOW(), :endDate, 'active', NOW())`,
+       (code, name, description, discount_type, discount_value, min_order_value, max_discount, usage_limit, start_date, end_date, status, created_at, updated_at)
+       VALUES (:code, :name, :description, :discountType, :discountValue, :minOrderValue, :maxDiscount, :usageLimit, :startDate, :endDate, :status, NOW(), NOW())`,
       data,
     );
 
@@ -661,9 +693,14 @@ router.patch("/vouchers/:id", ...adminOnly, async (req, res, next) => {
     const params = { id };
     const mapping = {
       code: "code",
+      name: "name",
+      description: "description",
       discountType: "discount_type",
       discountValue: "discount_value",
       minOrderValue: "min_order_value",
+      maxDiscount: "max_discount",
+      usageLimit: "usage_limit",
+      startDate: "start_date",
       endDate: "end_date",
       status: "status",
     };
@@ -674,7 +711,7 @@ router.patch("/vouchers/:id", ...adminOnly, async (req, res, next) => {
     }
     if (!fields.length) return res.status(400).json({ message: "Không có dữ liệu cần cập nhật." });
 
-    const result = await query(`UPDATE vouchers SET ${fields.join(", ")} WHERE voucher_id = :id`, params);
+    const result = await query(`UPDATE vouchers SET ${fields.join(", ")}, updated_at = NOW() WHERE voucher_id = :id`, params);
     if (!result.affectedRows) return res.status(404).json({ message: "Không tìm thấy voucher." });
     return res.json({ message: "Đã cập nhật voucher." });
   } catch (error) {

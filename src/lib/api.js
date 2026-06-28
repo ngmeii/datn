@@ -1,5 +1,27 @@
 const TOKEN_KEY = "consignment_token";
 const USER_KEY = "consignment_user";
+const VALIDATION_FIELD_LABELS = {
+  productName: "Tên sản phẩm",
+  categoryId: "Danh mục",
+  brand: "Thương hiệu",
+  conditionLevel: "Tình trạng",
+  conditionNote: "Mô tả tình trạng",
+  expectedPrice: "Giá mua/giá mong muốn",
+  sendMethod: "Phương thức gửi hàng",
+  imageUrl: "Ảnh sản phẩm",
+  senderName: "Họ và tên",
+  senderPhone: "Số điện thoại",
+  senderProvince: "Tỉnh/Thành phố",
+  senderProvinceCode: "Tỉnh/Thành phố",
+  senderDistrict: "Quận/Huyện",
+  senderDistrictId: "Quận/Huyện",
+  senderWard: "Phường/Xã",
+  senderWardCode: "Phường/Xã",
+  senderStreet: "Địa chỉ chi tiết",
+  customerName: "Họ và tên",
+  customerEmail: "Email",
+  customerPhone: "Số điện thoại",
+};
 
 export function getToken() {
   return sessionStorage.getItem(TOKEN_KEY);
@@ -54,10 +76,29 @@ export async function api(path, options = {}) {
   }
 
   if (!response.ok) {
-    throw new Error(data?.message || "Không thể kết nối máy chủ.");
+    throw new Error(formatApiError(data) || "Không thể kết nối máy chủ.");
   }
 
   return data;
+}
+
+function formatApiError(data) {
+  if (Array.isArray(data?.issues) && data.issues.length) {
+    return data.issues.map(formatValidationIssue).join(" ");
+  }
+
+  return data?.message || "";
+}
+
+function formatValidationIssue(issue) {
+  const path = Array.isArray(issue?.path) ? issue.path.filter(Boolean).join(".") : "";
+  const segments = path.split(".");
+  const isItemField = segments[0] === "items" && segments.length >= 3;
+  const fieldKey = isItemField ? segments[2] : segments[0] || "";
+  const itemPrefix = isItemField ? `Sản phẩm ${Number(segments[1]) + 1} - ` : "";
+  const label = VALIDATION_FIELD_LABELS[path] || VALIDATION_FIELD_LABELS[fieldKey] || path;
+  const message = issue?.message || "không hợp lệ.";
+  return label ? `${itemPrefix}${label}: ${message}` : message;
 }
 
 export async function uploadImage(file) {

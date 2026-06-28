@@ -28,6 +28,7 @@ import {
   Store,
   Tag,
   TicketPercent,
+  Trash2,
   Upload,
   UserRound,
   UserRoundCog,
@@ -62,9 +63,9 @@ const accountCodePrefix = {
   admin: "AD",
 };
 
-const ACCOUNT_PAGE_SIZE = 12;
-const CATEGORY_PAGE_SIZE = 8;
-const VOUCHER_PAGE_SIZE = 5;
+const ACCOUNT_PAGE_SIZE = 15;
+const CATEGORY_PAGE_SIZE = 15;
+const VOUCHER_PAGE_SIZE = 15;
 const reportCategoryColors = ["#ad6a3e", "#d6a766", "#527376", "#6f9b8c", "#a9b5aa", "#ead9ca"];
 const defaultSettings = {
   storeName: "The Heirloom",
@@ -132,6 +133,8 @@ export default function AdminPage() {
   const user = getCurrentUser();
   const [overview, setOverview] = useState(null);
   const [modal, setModal] = useState("");
+  const [categoryDialog, setCategoryDialog] = useState(null);
+  const [voucherDialog, setVoucherDialog] = useState(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [query, setQuery] = useState("");
@@ -325,7 +328,7 @@ export default function AdminPage() {
 
   const categoryMetrics = useMemo(() => {
     const totalCategories = Number(summary.category_count || categories.length);
-    const activeCategories = categories.filter((category) => Number(category.product_count || 0) > 0).length;
+    const activeCategories = categories.filter((category) => isCategoryActive(category.status)).length;
     const totalProducts = categories.reduce((sum, category) => sum + Number(category.product_count || 0), 0);
     const newCategories = Number(summary.new_category_count || 0);
 
@@ -475,38 +478,98 @@ export default function AdminPage() {
     });
   }
 
-  function editCategory(category) {
-    const name = window.prompt("Tên danh mục", category.name);
-    if (!name || name === category.name) return;
-    runAdminAction(`/admin/categories/${category.id}`, {
+  function openCategoryCreate() {
+    setCategoryDialog({ mode: "create", category: null });
+  }
+
+  function openCategoryDetail(category) {
+    setCategoryDialog({ mode: "detail", category });
+  }
+
+  function openCategoryEdit(category) {
+    setCategoryDialog({ mode: "edit", category });
+  }
+
+  async function saveCategory(payload) {
+    setMessage("");
+    try {
+      const isEdit = categoryDialog?.mode === "edit" && categoryDialog.category?.id;
+      const result = await api(isEdit ? `/categories/${categoryDialog.category.id}` : "/categories", {
+        method: isEdit ? "PUT" : "POST",
+        body: JSON.stringify(payload),
+      });
+      setMessage(result.message);
+      setCategoryDialog(null);
+      await loadOverview();
+      return "";
+    } catch (error) {
+      setMessage(error.message);
+      return error.message;
+    }
+  }
+
+  async function toggleCategoryStatus(category) {
+    const nextStatus = isCategoryActive(category.status) ? "inactive" : "active";
+    await runAdminAction(`/categories/${category.id}/status`, {
       method: "PATCH",
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ status: nextStatus }),
     });
   }
 
   function deleteCategory(category) {
+    if (Number(category.product_count || 0) > 0) {
+      setMessage("Không thể xóa danh mục đang có sản phẩm.");
+      return;
+    }
     if (!window.confirm(`Xóa danh mục ${category.name}?`)) return;
-    runAdminAction(`/admin/categories/${category.id}`, { method: "DELETE" });
+    runAdminAction(`/categories/${category.id}`, { method: "DELETE" });
   }
 
-  function editVoucher(voucher) {
-    const discountValue = window.prompt("Giá trị giảm", String(Number(voucher.discount_value || 0)));
-    if (discountValue === null) return;
-    const endDate = window.prompt("Ngày hết hạn (YYYY-MM-DD)", String(voucher.end_date || "").slice(0, 10));
-    if (!endDate) return;
-    runAdminAction(`/admin/vouchers/${voucher.id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ discountValue: Number(discountValue), endDate }),
-    });
+  function openVoucherCreate() {
+    setVoucherDialog({ mode: "create", voucher: null });
   }
 
-  function toggleVoucherStatus(voucher) {
-    const status = voucher.status === "active" ? "inactive" : "active";
-    if (!window.confirm(`${status === "active" ? "Kích hoạt" : "Vô hiệu hóa"} voucher ${voucher.code}?`)) return;
-    runAdminAction(`/admin/vouchers/${voucher.id}`, {
+  function openVoucherDetail(voucher) {
+    setVoucherDialog({ mode: "detail", voucher });
+  }
+
+  function openVoucherEdit(voucher) {
+    setVoucherDialog({ mode: "edit", voucher });
+  }
+
+  async function saveVoucher(payload) {
+    setMessage("");
+    try {
+      const isEdit = voucherDialog?.mode === "edit" && voucherDialog.voucher?.id;
+      const result = await api(isEdit ? `/vouchers/${voucherDialog.voucher.id}` : "/vouchers", {
+        method: isEdit ? "PUT" : "POST",
+        body: JSON.stringify(payload),
+      });
+      setMessage(result.message);
+      setVoucherDialog(null);
+      await loadOverview();
+      return "";
+    } catch (error) {
+      setMessage(error.message);
+      return error.message;
+    }
+  }
+
+  async function toggleVoucherStatus(voucher) {
+    const status = isVoucherBaseActive(voucher.status) ? "inactive" : "active";
+    await runAdminAction(`/vouchers/${voucher.id}/status`, {
       method: "PATCH",
       body: JSON.stringify({ status }),
     });
+  }
+
+  function deleteVoucher(voucher) {
+    if (Number(voucher.used_count || 0) > 0) {
+      setMessage("Không thể xóa voucher đã có lượt sử dụng.");
+      return;
+    }
+    if (!window.confirm(`Xóa voucher ${voucher.code}?`)) return;
+    runAdminAction(`/vouchers/${voucher.id}`, { method: "DELETE" });
   }
 
   async function saveSettings() {
@@ -615,13 +678,15 @@ export default function AdminPage() {
               highlights={categories.slice(0, 5)}
               query={query}
               setQuery={setQuery}
-              onOpenCreate={() => setModal("category")}
+              onOpenCreate={openCategoryCreate}
               categories={visibleCategories}
               total={filteredCategories.length}
               page={safeCategoryPage}
               totalPages={categoryTotalPages}
               onPageChange={setCategoryPage}
-              onEdit={editCategory}
+              onView={openCategoryDetail}
+              onEdit={openCategoryEdit}
+              onToggleStatus={toggleCategoryStatus}
               onDelete={deleteCategory}
             />
           ) : null}
@@ -635,14 +700,16 @@ export default function AdminPage() {
               setVoucherStatusFilter={setVoucherStatusFilter}
               voucherTypeFilter={voucherTypeFilter}
               setVoucherTypeFilter={setVoucherTypeFilter}
-              onOpenCreate={() => setModal("voucher")}
+              onOpenCreate={openVoucherCreate}
               vouchers={visibleVouchers}
               total={filteredVouchers.length}
               page={safeVoucherPage}
               totalPages={voucherTotalPages}
               onPageChange={setVoucherPage}
-              onEdit={editVoucher}
+              onView={openVoucherDetail}
+              onEdit={openVoucherEdit}
               onToggleStatus={toggleVoucherStatus}
+              onDelete={deleteVoucher}
             />
           ) : null}
 
@@ -681,6 +748,22 @@ export default function AdminPage() {
       </section>
 
       {modal ? <ResourceModal type={modal} onClose={() => setModal("")} onSubmit={createResource} /> : null}
+      {categoryDialog ? (
+        <CategoryDialog
+          mode={categoryDialog.mode}
+          category={categoryDialog.category}
+          onClose={() => setCategoryDialog(null)}
+          onSubmit={saveCategory}
+        />
+      ) : null}
+      {voucherDialog ? (
+        <VoucherDialog
+          mode={voucherDialog.mode}
+          voucher={voucherDialog.voucher}
+          onClose={() => setVoucherDialog(null)}
+          onSubmit={saveVoucher}
+        />
+      ) : null}
     </main>
   );
 }
@@ -750,9 +833,13 @@ function AccountsView({
   page,
   totalPages,
   onPageChange,
+  onView,
   onEdit,
   onToggleStatus,
+  onDelete,
 }) {
+  const [actionMenuId, setActionMenuId] = useState(null);
+
   return (
     <>
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -875,9 +962,13 @@ function CategoriesView({
   page,
   totalPages,
   onPageChange,
+  onView,
   onEdit,
+  onToggleStatus,
   onDelete,
 }) {
+  const [actionMenuId, setActionMenuId] = useState(null);
+
   return (
     <>
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -905,6 +996,7 @@ function CategoriesView({
             />
           </label>
           <button
+            type="button"
             onClick={onOpenCreate}
             className="inline-flex h-12 items-center gap-2 rounded-lg bg-[#9b6b49] px-5 text-sm font-semibold text-white"
           >
@@ -913,7 +1005,7 @@ function CategoriesView({
           </button>
         </div>
 
-        <div className="mt-4 overflow-x-auto rounded-lg border border-[#eee5de]">
+        <div className="mt-4 overflow-x-auto overflow-y-visible rounded-lg border border-[#eee5de]">
           <table className="w-full min-w-[1020px] border-collapse text-left text-xs">
             <thead className="bg-[#fcf9f6] text-[#71665f]">
               <tr>
@@ -927,27 +1019,62 @@ function CategoriesView({
             </thead>
             <tbody>
               {categories.map((category) => {
-                const active = Number(category.product_count || 0) > 0;
+                const active = isCategoryActive(category.status);
+                const menuOpen = actionMenuId === category.id;
+                const canDelete = Number(category.product_count || 0) === 0;
                 return (
                   <tr key={category.id} className="border-t border-[#eee5de] text-[#685d56]">
                     <td className="px-4 py-3 font-medium">{makeCategoryCode(category)}</td>
                     <td className="px-4 py-3 font-medium text-[#4a3e36]">{category.name}</td>
                     <td className="px-4 py-3">{formatCount(category.product_count)}</td>
                     <td className="px-4 py-3">
-                      <StatusBadge status={active ? "Đang hoạt động" : "Tạm khóa"} />
+                      <StatusBadge status={getCategoryStatusLabel(category.status)} />
                     </td>
                     <td className="px-4 py-3">{formatDateTime(category.updated_at)}</td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center justify-center gap-3 text-clay">
-                        <button onClick={() => window.alert(`${category.name}\n${formatCount(category.product_count)} sản phẩm`)} className="transition hover:text-ink" title="Xem">
+                      <div className="relative flex items-center justify-center gap-3 text-clay">
+                        <button type="button" onClick={() => onView(category)} className="grid h-8 w-8 place-items-center rounded-md transition hover:bg-linen hover:text-ink" title="Xem chi tiết">
                           <Eye size={16} />
                         </button>
-                        <button onClick={() => onEdit(category)} className="transition hover:text-ink" title="Chỉnh sửa">
+                        <button type="button" onClick={() => onEdit(category)} className="grid h-8 w-8 place-items-center rounded-md transition hover:bg-linen hover:text-ink" title="Sửa danh mục">
                           <Pencil size={16} />
                         </button>
-                        <button onClick={() => onDelete(category)} className="transition hover:text-ink" title="Xóa danh mục">
+                        <button
+                          type="button"
+                          onClick={() => setActionMenuId((current) => (current === category.id ? null : category.id))}
+                          className="grid h-8 w-8 place-items-center rounded-md transition hover:bg-linen hover:text-ink"
+                          title="Menu thao tác khác"
+                          aria-expanded={menuOpen}
+                        >
                           <MoreVertical size={16} />
                         </button>
+                        {menuOpen ? (
+                          <div className="absolute right-0 top-9 z-50 w-52 overflow-hidden rounded-lg border border-[#eadfd5] bg-white py-2 text-left text-sm text-[#57483f] shadow-soft">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActionMenuId(null);
+                                onToggleStatus(category);
+                              }}
+                              className="block w-full px-4 py-2 text-left font-semibold hover:bg-[#fff7f0]"
+                            >
+                              {active ? "Tạm khóa danh mục" : "Mở khóa danh mục"}
+                            </button>
+                            {canDelete ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActionMenuId(null);
+                                  onDelete(category);
+                                }}
+                                className="flex w-full items-center gap-2 px-4 py-2 text-left font-semibold text-danger hover:bg-red-50"
+                              >
+                                <Trash2 size={15} />
+                                Xóa danh mục
+                              </button>
+                            ) : null}
+                          </div>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
@@ -1018,6 +1145,7 @@ function VouchersView({
             <option value="">Tất cả trạng thái</option>
             <option value="active">Đang hoạt động</option>
             <option value="expiring">Sắp hết hạn</option>
+            <option value="inactive">Tạm khóa</option>
             <option value="expired">Đã hết hạn</option>
           </FormSelect>
           <FormSelect
@@ -1031,6 +1159,7 @@ function VouchersView({
           </FormSelect>
           <div className="flex items-end">
             <button
+              type="button"
               onClick={onOpenCreate}
               className="inline-flex h-12 items-center gap-2 rounded-lg bg-[#9b6b49] px-5 text-sm font-semibold text-white"
             >
@@ -1040,7 +1169,7 @@ function VouchersView({
           </div>
         </div>
 
-        <div className="mt-4 overflow-x-auto rounded-lg border border-[#eee5de]">
+        <div className="mt-4 overflow-x-auto overflow-y-visible rounded-lg border border-[#eee5de]">
           <table className="w-full min-w-[1240px] border-collapse text-left text-xs">
             <thead className="bg-[#fcf9f6] text-[#71665f]">
               <tr>
@@ -1056,38 +1185,76 @@ function VouchersView({
               </tr>
             </thead>
             <tbody>
-              {vouchers.map((voucher) => (
-                <tr key={voucher.id} className="border-t border-[#eee5de] text-[#685d56]">
-                  <td className="px-4 py-3">
-                    <span className="rounded bg-[#f6ede5] px-2 py-1 font-medium text-[#9b6b49]">{voucher.code}</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <p className="font-medium text-[#4a3e36]">{getVoucherDisplayName(voucher)}</p>
-                    <p className="mt-1 text-[11px] text-[#8a7b72]">{getVoucherDescription(voucher)}</p>
-                  </td>
-                  <td className="px-4 py-3">{getVoucherTypeLabel(voucher.discount_type)}</td>
-                  <td className="px-4 py-3">{formatVoucherValue(voucher)}</td>
-                  <td className="px-4 py-3">{getVoucherConditionLabel(voucher)}</td>
-                  <td className="px-4 py-3">{formatShortDate(voucher.start_date || voucher.created_at)}</td>
-                  <td className="px-4 py-3">{formatShortDate(voucher.end_date)}</td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={getVoucherStatusLabel(voucher)} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-center gap-3 text-clay">
-                      <button onClick={() => window.alert(`${voucher.code}\n${formatVoucherValue(voucher)}\n${getVoucherConditionLabel(voucher)}`)} className="transition hover:text-ink" title="Xem">
-                        <Eye size={16} />
-                      </button>
-                      <button onClick={() => onEdit(voucher)} className="transition hover:text-ink" title="Chỉnh sửa">
-                        <Pencil size={16} />
-                      </button>
-                      <button onClick={() => onToggleStatus(voucher)} className="transition hover:text-ink" title={voucher.status === "active" ? "Vô hiệu hóa" : "Kích hoạt"}>
-                        <MoreVertical size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {vouchers.map((voucher) => {
+                const active = isVoucherBaseActive(voucher.status);
+                const menuOpen = actionMenuId === voucher.id;
+                const canDelete = Number(voucher.used_count || 0) === 0;
+                return (
+                  <tr key={voucher.id} className="border-t border-[#eee5de] text-[#685d56]">
+                    <td className="px-4 py-3">
+                      <span className="rounded bg-[#f6ede5] px-2 py-1 font-medium text-[#9b6b49]">{voucher.code}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-[#4a3e36]">{getVoucherDisplayName(voucher)}</p>
+                      <p className="mt-1 text-[11px] text-[#8a7b72]">{getVoucherDescription(voucher)}</p>
+                    </td>
+                    <td className="px-4 py-3">{getVoucherTypeLabel(voucher.discount_type)}</td>
+                    <td className="px-4 py-3">{formatVoucherValue(voucher)}</td>
+                    <td className="px-4 py-3">{getVoucherConditionLabel(voucher)}</td>
+                    <td className="px-4 py-3">{formatShortDate(voucher.start_date || voucher.created_at)}</td>
+                    <td className="px-4 py-3">{formatShortDate(voucher.end_date)}</td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={getVoucherStatusLabel(voucher)} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="relative flex items-center justify-center gap-3 text-clay">
+                        <button type="button" onClick={() => onView(voucher)} className="grid h-8 w-8 place-items-center rounded-md transition hover:bg-linen hover:text-ink" title="Xem chi tiết">
+                          <Eye size={16} />
+                        </button>
+                        <button type="button" onClick={() => onEdit(voucher)} className="grid h-8 w-8 place-items-center rounded-md transition hover:bg-linen hover:text-ink" title="Sửa voucher">
+                          <Pencil size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActionMenuId((current) => (current === voucher.id ? null : voucher.id))}
+                          className="grid h-8 w-8 place-items-center rounded-md transition hover:bg-linen hover:text-ink"
+                          title="Menu thao tác khác"
+                          aria-expanded={menuOpen}
+                        >
+                          <MoreVertical size={16} />
+                        </button>
+                        {menuOpen ? (
+                          <div className="absolute right-0 top-9 z-50 w-52 overflow-hidden rounded-lg border border-[#eadfd5] bg-white py-2 text-left text-sm text-[#57483f] shadow-soft">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActionMenuId(null);
+                                onToggleStatus(voucher);
+                              }}
+                              className="block w-full px-4 py-2 text-left font-semibold hover:bg-[#fff7f0]"
+                            >
+                              {active ? "Tạm khóa voucher" : "Mở khóa voucher"}
+                            </button>
+                            {canDelete ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActionMenuId(null);
+                                  onDelete(voucher);
+                                }}
+                                className="flex w-full items-center gap-2 px-4 py-2 text-left font-semibold text-danger hover:bg-red-50"
+                              >
+                                <Trash2 size={15} />
+                                Xóa voucher
+                              </button>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
               {!vouchers.length ? <EmptyTableRow colSpan={9} text="Không tìm thấy voucher phù hợp." /> : null}
             </tbody>
           </table>
@@ -1891,13 +2058,216 @@ function StatusBadge({ status }) {
   return <span className={`rounded px-2 py-1 text-[10px] font-semibold ${styles[status] || "bg-[#f3eee8] text-[#6e625b]"}`}>{status}</span>;
 }
 
+function CategoryDialog({ mode, category, onClose, onSubmit }) {
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const isDetail = mode === "detail";
+  const title = mode === "create" ? "Thêm danh mục" : mode === "edit" ? "Sửa danh mục" : "Chi tiết danh mục";
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setSubmitting(true);
+    setError("");
+    const form = new FormData(event.currentTarget);
+    const payload = {
+      name: String(form.get("name") || "").trim(),
+      description: String(form.get("description") || "").trim(),
+      status: form.get("status") || "active",
+    };
+    setError(await onSubmit(payload));
+    setSubmitting(false);
+  }
+
+  return (
+    <div className="fixed inset-0 z-[100] grid place-items-center bg-black/35 px-4 py-8">
+      <section className="w-full max-w-xl rounded-xl border border-border bg-white p-5 shadow-soft">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="font-display text-2xl font-semibold text-[#34271f]">{title}</h2>
+            <p className="mt-1 text-xs text-muted">Quản lý thông tin và trạng thái danh mục sản phẩm.</p>
+          </div>
+          <button type="button" onClick={onClose} className="grid h-9 w-9 shrink-0 place-items-center rounded-full hover:bg-[#f7eee7]" aria-label="Đóng">
+            <X size={17} />
+          </button>
+        </div>
+
+        {isDetail ? (
+          <div className="mt-5 rounded-lg border border-[#eee5de] bg-[#fcfaf8] px-5 py-3 text-sm">
+            <DetailRow label="Mã danh mục" value={makeCategoryCode(category)} />
+            <DetailRow label="Tên danh mục" value={category?.name || "--"} />
+            <DetailRow label="Mô tả" value={category?.description || "--"} />
+            <DetailRow label="Số sản phẩm" value={formatCount(category?.product_count)} />
+            <DetailRow label="Trạng thái" value={<StatusBadge status={getCategoryStatusLabel(category?.status)} />} />
+            <DetailRow label="Ngày tạo" value={formatDateTime(category?.created_at)} />
+            <DetailRow label="Ngày cập nhật" value={formatDateTime(category?.updated_at || category?.created_at)} />
+            <div className="mt-5 flex justify-end">
+              <button type="button" onClick={onClose} className="h-10 rounded-lg bg-[#34271f] px-5 text-sm font-semibold text-white">
+                Đóng
+              </button>
+            </div>
+          </div>
+        ) : (
+          <form className="mt-5 grid gap-4" onSubmit={handleSubmit}>
+            <FormField name="name" label="Tên danh mục" defaultValue={category?.name || ""} required />
+            <label>
+              <span className="text-xs font-semibold text-[#594b43]">Mô tả nếu có</span>
+              <textarea
+                name="description"
+                defaultValue={category?.description || ""}
+                rows="4"
+                className="mt-2 w-full rounded-md border border-border px-3 py-2 text-sm outline-none focus:border-clay"
+                placeholder="Mô tả ngắn về nhóm sản phẩm..."
+              />
+            </label>
+            <FormSelect name="status" label="Trạng thái" defaultValue={normalizeCategoryStatus(category?.status)}>
+              <option value="active">Đang hoạt động</option>
+              <option value="inactive">Tạm khóa</option>
+            </FormSelect>
+
+            {error ? <p className="rounded-md bg-red-50 px-3 py-2 text-xs font-medium text-red-700">{error}</p> : null}
+            <div className="mt-2 flex justify-end gap-3">
+              <button type="button" onClick={onClose} disabled={submitting} className="h-11 rounded-lg border border-border px-5 text-sm font-semibold text-[#6d5f55]">
+                Hủy
+              </button>
+              <button disabled={submitting} className="inline-flex h-11 items-center justify-center rounded-lg bg-[#34271f] px-5 text-sm font-semibold text-white disabled:opacity-60">
+                {submitting ? <Loader2 className="mr-2 animate-spin" size={16} /> : null}
+                Lưu danh mục
+              </button>
+            </div>
+          </form>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function DetailRow({ label, value }) {
+  return (
+    <div className="flex items-center justify-between gap-4 border-b border-[#eadfd5] py-3 last:border-b-0">
+      <span className="text-muted">{label}</span>
+      <span className="text-right font-semibold text-[#3f3128]">{value}</span>
+    </div>
+  );
+}
+
+function VoucherDialog({ mode, voucher, onClose, onSubmit }) {
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const isDetail = mode === "detail";
+  const title = mode === "create" ? "Tạo voucher" : mode === "edit" ? "Sửa voucher" : "Chi tiết voucher";
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setSubmitting(true);
+    setError("");
+    const form = new FormData(event.currentTarget);
+    const payload = {
+      code: String(form.get("code") || "").trim(),
+      name: String(form.get("name") || "").trim(),
+      description: String(form.get("description") || "").trim(),
+      discountType: form.get("discountType"),
+      discountValue: Number(form.get("discountValue") || 0),
+      minOrderValue: Number(form.get("minOrderValue") || 0),
+      maxDiscount: form.get("maxDiscount") || "",
+      usageLimit: form.get("usageLimit") || "",
+      startDate: form.get("startDate"),
+      endDate: form.get("endDate"),
+      status: form.get("status") || "active",
+    };
+    setError(await onSubmit(payload));
+    setSubmitting(false);
+  }
+
+  return (
+    <div className="fixed inset-0 z-[100] grid place-items-center bg-black/35 px-4 py-8">
+      <section className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-border bg-white p-5 shadow-soft">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="font-display text-2xl font-semibold text-[#34271f]">{title}</h2>
+            <p className="mt-1 text-xs text-muted">Thiết lập mã ưu đãi, điều kiện áp dụng và trạng thái hiển thị.</p>
+          </div>
+          <button type="button" onClick={onClose} className="grid h-9 w-9 shrink-0 place-items-center rounded-full hover:bg-[#f7eee7]" aria-label="Đóng">
+            <X size={17} />
+          </button>
+        </div>
+
+        {isDetail ? (
+          <div className="mt-5 rounded-lg border border-[#eee5de] bg-[#fcfaf8] px-5 py-3 text-sm">
+            <DetailRow label="Mã voucher" value={voucher?.code || "--"} />
+            <DetailRow label="Tên voucher" value={getVoucherDisplayName(voucher)} />
+            <DetailRow label="Mô tả" value={getVoucherDescription(voucher)} />
+            <DetailRow label="Loại giảm giá" value={getVoucherTypeLabel(voucher?.discount_type)} />
+            <DetailRow label="Giá trị" value={formatVoucherValue(voucher || {})} />
+            <DetailRow label="Điều kiện áp dụng" value={getVoucherConditionLabel(voucher || {})} />
+            <DetailRow label="Giảm tối đa" value={Number(voucher?.max_discount || 0) > 0 ? formatCurrency(voucher.max_discount) : "Không giới hạn"} />
+            <DetailRow label="Giới hạn lượt dùng" value={voucher?.usage_limit ? formatCount(voucher.usage_limit) : "Không giới hạn"} />
+            <DetailRow label="Đã sử dụng" value={formatCount(voucher?.used_count)} />
+            <DetailRow label="Ngày bắt đầu" value={formatShortDate(voucher?.start_date || voucher?.created_at)} />
+            <DetailRow label="Ngày hết hạn" value={formatShortDate(voucher?.end_date)} />
+            <DetailRow label="Trạng thái" value={<StatusBadge status={getVoucherStatusLabel(voucher || {})} />} />
+            <DetailRow label="Ngày tạo" value={formatDateTime(voucher?.created_at)} />
+            <DetailRow label="Ngày cập nhật" value={formatDateTime(voucher?.updated_at || voucher?.created_at)} />
+            <div className="mt-5 flex justify-end">
+              <button type="button" onClick={onClose} className="h-10 rounded-lg bg-[#34271f] px-5 text-sm font-semibold text-white">
+                Đóng
+              </button>
+            </div>
+          </div>
+        ) : (
+          <form className="mt-5 grid gap-4" onSubmit={handleSubmit}>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField name="code" label="Mã voucher" defaultValue={voucher?.code || ""} required />
+              <FormField name="name" label="Tên voucher" defaultValue={voucher?.name || (voucher ? getVoucherDisplayName(voucher) : "")} />
+            </div>
+            <label>
+              <span className="text-xs font-semibold text-[#594b43]">Mô tả nếu có</span>
+              <textarea
+                name="description"
+                defaultValue={voucher?.description || ""}
+                rows="3"
+                className="mt-2 w-full rounded-md border border-border px-3 py-2 text-sm outline-none focus:border-clay"
+                placeholder="Mô tả ngắn về ưu đãi..."
+              />
+            </label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormSelect name="discountType" label="Loại giảm giá" defaultValue={voucher?.discount_type || "percent"}>
+                <option value="percent">Giảm %</option>
+                <option value="fixed">Giảm tiền</option>
+              </FormSelect>
+              <FormField name="discountValue" label="Giá trị" type="number" min="1" step="0.01" defaultValue={Number(voucher?.discount_value || 0) || ""} required />
+              <FormField name="minOrderValue" label="Đơn tối thiểu" type="number" min="0" defaultValue={Number(voucher?.min_order_value || 0)} required />
+              <FormField name="maxDiscount" label="Giảm tối đa" type="number" min="0" defaultValue={voucher?.max_discount || ""} placeholder="Không giới hạn" />
+              <FormField name="usageLimit" label="Giới hạn lượt dùng" type="number" min="1" defaultValue={voucher?.usage_limit || ""} placeholder="Không giới hạn" />
+              <FormSelect name="status" label="Trạng thái" defaultValue={normalizeVoucherStatus(voucher?.status)}>
+                <option value="active">Đang hoạt động</option>
+                <option value="inactive">Tạm khóa</option>
+              </FormSelect>
+              <FormField name="startDate" label="Ngày bắt đầu" type="date" defaultValue={toInputDate(voucher?.start_date) || toDateKey(new Date())} required />
+              <FormField name="endDate" label="Ngày hết hạn" type="date" defaultValue={toInputDate(voucher?.end_date)} required />
+            </div>
+
+            {error ? <p className="rounded-md bg-red-50 px-3 py-2 text-xs font-medium text-red-700">{error}</p> : null}
+            <div className="mt-2 flex justify-end gap-3">
+              <button type="button" onClick={onClose} disabled={submitting} className="h-11 rounded-lg border border-border px-5 text-sm font-semibold text-[#6d5f55]">
+                Hủy
+              </button>
+              <button disabled={submitting} className="inline-flex h-11 items-center justify-center rounded-lg bg-[#34271f] px-5 text-sm font-semibold text-white disabled:opacity-60">
+                {submitting ? <Loader2 className="mr-2 animate-spin" size={16} /> : null}
+                Lưu voucher
+              </button>
+            </div>
+          </form>
+        )}
+      </section>
+    </div>
+  );
+}
+
 function ResourceModal({ type, onClose, onSubmit }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const config = {
     account: { title: "Thêm tài khoản", path: "/admin/users" },
-    category: { title: "Thêm danh mục", path: "/admin/categories" },
-    voucher: { title: "Tạo voucher", path: "/admin/vouchers" },
   }[type];
 
   async function handleSubmit(event) {
@@ -1930,21 +2300,6 @@ function ResourceModal({ type, onClose, onSubmit }) {
                 <option value="staff">Nhân viên</option>
                 <option value="admin">Admin</option>
               </FormSelect>
-            </>
-          ) : null}
-
-          {type === "category" ? <FormField name="name" label="Tên danh mục" required /> : null}
-
-          {type === "voucher" ? (
-            <>
-              <FormField name="code" label="Mã voucher" required />
-              <FormSelect name="discountType" label="Loại giảm giá" defaultValue="percent">
-                <option value="percent">Giảm %</option>
-                <option value="fixed">Giảm tiền</option>
-              </FormSelect>
-              <FormField name="discountValue" label="Giá trị giảm" type="number" min="1" required />
-              <FormField name="minOrderValue" label="Đơn tối thiểu" type="number" min="0" defaultValue="0" required />
-              <FormField name="endDate" label="Ngày hết hạn" type="date" required />
             </>
           ) : null}
 
@@ -2038,6 +2393,13 @@ function toDateKey(value) {
   return `${year}-${month}-${day}`;
 }
 
+function toInputDate(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return toDateKey(date);
+}
+
 function csvCell(value) {
   return `"${String(value ?? "").replaceAll('"', '""')}"`;
 }
@@ -2057,6 +2419,20 @@ function makeAccountCode(account) {
 
 function makeCategoryCode(category) {
   return `DM${String(category.id).padStart(3, "0")}`;
+}
+
+function normalizeCategoryStatus(status) {
+  if (status === 1 || status === true || status === "1") return "active";
+  const normalized = String(status || "active").toLowerCase();
+  return normalized === "active" ? "active" : "inactive";
+}
+
+function isCategoryActive(status) {
+  return normalizeCategoryStatus(status) === "active";
+}
+
+function getCategoryStatusLabel(status) {
+  return isCategoryActive(status) ? "Đang hoạt động" : "Tạm khóa";
 }
 
 function summarizeAccountsByPeriod(accounts, start, end) {
@@ -2101,18 +2477,20 @@ function percent(value, total) {
 }
 
 function getVoucherDisplayName(voucher) {
-  const code = String(voucher.code || "").toUpperCase();
+  if (voucher?.name) return voucher.name;
+  const code = String(voucher?.code || "").toUpperCase();
   if (code.includes("WELCOME")) return "Ưu đãi chào mừng";
   if (code.includes("FREE")) return "Freeship toàn quốc";
   if (code.includes("SALE")) return "Sale ưu đãi";
   if (code.includes("VIP")) return "Ưu đãi khách VIP";
   if (code.includes("THANK")) return "Cảm ơn khách hàng";
-  return `Voucher ${code}`;
+  return code ? `Voucher ${code}` : "Voucher";
 }
 
 function getVoucherDescription(voucher) {
-  if (voucher.discount_type === "fixed") return "Miễn phí vận chuyển hoặc giảm tiền trực tiếp";
-  if (Number(voucher.min_order_value || 0) > 0) return "Áp dụng cho đơn hàng đủ điều kiện";
+  if (voucher?.description) return voucher.description;
+  if (voucher?.discount_type === "fixed") return "Miễn phí vận chuyển hoặc giảm tiền trực tiếp";
+  if (Number(voucher?.min_order_value || 0) > 0) return "Áp dụng cho đơn hàng đủ điều kiện";
   return "Áp dụng cho đơn hàng tiếp theo";
 }
 
@@ -2131,10 +2509,20 @@ function getVoucherConditionLabel(voucher) {
   return minValue > 0 ? `Đơn tối thiểu ${formatCurrency(minValue)}` : "Không giới hạn";
 }
 
+function normalizeVoucherStatus(status) {
+  if (status === 1 || status === true || status === "1") return "active";
+  const normalized = String(status || "active").toLowerCase();
+  return normalized === "active" ? "active" : "inactive";
+}
+
+function isVoucherBaseActive(status) {
+  return normalizeVoucherStatus(status) === "active";
+}
+
 function getVoucherUiStatus(voucher) {
   const now = Date.now();
   const endTime = voucher.end_date ? new Date(voucher.end_date).getTime() : 0;
-  if (voucher.status !== "active") return "expired";
+  if (!isVoucherBaseActive(voucher.status)) return "inactive";
   if (endTime && endTime < now) return "expired";
   if (endTime && endTime - now <= 7 * 24 * 60 * 60 * 1000) return "expiring";
   return "active";
@@ -2144,6 +2532,7 @@ function getVoucherStatusLabel(voucher) {
   const status = getVoucherUiStatus(voucher);
   if (status === "active") return "Đang hoạt động";
   if (status === "expiring") return "Sắp hết hạn";
+  if (status === "inactive") return "Tạm khóa";
   return "Đã hết hạn";
 }
 

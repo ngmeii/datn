@@ -48,7 +48,7 @@ export default function StaffPage() {
     if (!isStaff) return;
 
     Promise.all([
-      api("/consignments").catch(() => []),
+      api("/staff/consignment-requests").catch(() => []),
       api("/orders").catch(() => []),
       api("/products?status=").catch(() => []),
       api(`/admin/activity?limit=50&date=${selectedDate}`).catch(() => []),
@@ -352,15 +352,15 @@ function NewRequestsTable({ requests, navigate }) {
           <tbody>
             {requests.map((item) => (
               <tr key={item.id} className="border-b border-border last:border-b-0">
-                <td className="px-3 py-3 font-bold">KG{String(item.id).padStart(4, "0")}</td>
+                <td className="px-3 py-3 font-bold">{item.request_code || `THK${String(item.id).padStart(6, "0")}`}</td>
                 <td className="px-3 py-3">{item.seller_name || "Khách ký gửi"}</td>
                 <td className="px-3 py-3">{formatDateTime(item.created_at)}</td>
-                <td className="px-3 py-3">1</td>
+                <td className="px-3 py-3">{item.product_count || 0}</td>
                 <td className="px-3 py-3 text-center"><span className="inline-flex min-w-[96px] justify-center whitespace-nowrap rounded-md bg-linen px-3 py-1 text-xs font-bold text-[#8a572f]">{requestStatusLabels[item.status] || item.status}</span></td>
                 <td className="px-3 py-3">
                   <div className="flex justify-center gap-2">
-                    <IconButton icon={Eye} onClick={() => navigate(`/staff/consignments/${item.id}`)} />
-                    <IconButton icon={Pencil} onClick={() => navigate(`/staff/consignments/${item.id}`)} />
+                    <IconButton icon={Eye} onClick={() => navigate(`/staff/consignment-requests/${item.id}`)} />
+                    <IconButton icon={Pencil} onClick={() => navigate(`/staff/consignment-requests/${item.id}`)} />
                     <IconButton icon={Trash2} />
                   </div>
                 </td>

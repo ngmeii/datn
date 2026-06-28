@@ -4,6 +4,7 @@ import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { getCurrentUser } from "../lib/api.js";
 import { getCart, onCartChange } from "../lib/cart.js";
 import AccountMenu from "./AccountMenu.jsx";
+import ChatbotWidget from "./ChatbotWidget.jsx";
 
 const navItems = [
   { to: "/", label: "Trang chủ", exact: true },
@@ -108,6 +109,7 @@ export default function Layout() {
       </header>
 
       <Outlet />
+      <ChatbotWidget />
     </div>
   );
 }

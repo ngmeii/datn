@@ -22,7 +22,10 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS categories (
   category_id INT NOT NULL AUTO_INCREMENT,
   name VARCHAR(150) NOT NULL,
+  description TEXT DEFAULT NULL,
+  status ENUM('active', 'inactive', 'locked') NOT NULL DEFAULT 'active',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (category_id)
 );
 
@@ -39,12 +42,17 @@ CREATE TABLE IF NOT EXISTS consignment_requests (
     'completed',
     'waiting_return',
     'returned',
+    'cancel_requested',
+    'cancelled_by_customer',
     'cancelled'
   ) NOT NULL DEFAULT 'pending',
   note TEXT,
   reject_reason TEXT,
   cancel_reason TEXT,
   cancelled_at DATETIME DEFAULT NULL,
+  cancelled_by INT DEFAULT NULL,
+  cancel_requested_at DATETIME DEFAULT NULL,
+  cancel_request_status VARCHAR(50) DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (request_id),
@@ -86,6 +94,8 @@ CREATE TABLE IF NOT EXISTS consignment_items (
 CREATE TABLE IF NOT EXISTS vouchers (
   voucher_id INT NOT NULL AUTO_INCREMENT,
   code VARCHAR(50) NOT NULL,
+  name VARCHAR(150) DEFAULT NULL,
+  description TEXT DEFAULT NULL,
   discount_type ENUM('percent', 'fixed') NOT NULL,
   discount_value DECIMAL(12, 2) NOT NULL,
   min_order_value DECIMAL(12, 0) DEFAULT '0',
@@ -96,6 +106,7 @@ CREATE TABLE IF NOT EXISTS vouchers (
   end_date DATETIME NOT NULL,
   status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (voucher_id),
   UNIQUE KEY uq_vouchers_code (code)
 );
@@ -248,7 +259,10 @@ CREATE TABLE IF NOT EXISTS shipping_orders (
   sender_phone VARCHAR(20) NOT NULL,
   sender_address VARCHAR(500) NOT NULL,
   fee DECIMAL(12, 0) NOT NULL DEFAULT '0',
-  status ENUM('pending', 'picked_up', 'shipping', 'delivered', 'failed', 'returned') NOT NULL DEFAULT 'pending',
+  status ENUM('pending', 'picked_up', 'shipping', 'delivered', 'received', 'cancelled', 'failed', 'returned') NOT NULL DEFAULT 'pending',
+  expected_delivery DATETIME DEFAULT NULL,
+  delivered_at DATETIME DEFAULT NULL,
+  received_at DATETIME DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (shipping_order_id),
@@ -267,15 +281,28 @@ CREATE TABLE IF NOT EXISTS disbursements (
   net_amount DECIMAL(12, 0) NOT NULL,
   bank_account VARCHAR(100) DEFAULT NULL,
   bank_name VARCHAR(100) DEFAULT NULL,
+  bank_account_holder VARCHAR(150) DEFAULT NULL,
   gateway_ref VARCHAR(255) DEFAULT NULL,
   status ENUM('pending', 'success', 'failed') NOT NULL DEFAULT 'pending',
   disbursed_at DATETIME DEFAULT NULL,
+  disbursed_by_staff_id INT DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (disbursement_id),
   UNIQUE KEY uq_disbursements_order_item_id (order_item_id),
   KEY fk_disb_seller (seller_id),
   CONSTRAINT fk_disb_item FOREIGN KEY (order_item_id) REFERENCES order_items (item_id),
   CONSTRAINT fk_disb_seller FOREIGN KEY (seller_id) REFERENCES users (user_id)
+);
+
+CREATE TABLE IF NOT EXISTS user_payment_info (
+  user_id INT NOT NULL,
+  bank_name VARCHAR(120) DEFAULT NULL,
+  bank_account_number VARCHAR(100) DEFAULT NULL,
+  bank_account_holder VARCHAR(150) DEFAULT NULL,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id),
+  CONSTRAINT fk_user_payment_info_user FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS carts (

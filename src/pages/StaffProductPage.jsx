@@ -19,7 +19,7 @@ import { matchesEntityKeyword } from "../lib/search.js";
 
 const heroImage = "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?auto=format&fit=crop&w=1300&q=90";
 const fallbackImage = "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?auto=format&fit=crop&w=700&q=85";
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 15;
 
 const statusLabels = {
   on_sale: "Đang đăng bán",

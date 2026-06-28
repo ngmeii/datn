@@ -3,14 +3,20 @@ import express from "express";
 import cors from "cors";
 import authRoutes from "./routes/auth.js";
 import productRoutes from "./routes/products.js";
-import consignmentRoutes from "./routes/consignments.js";
+import categoryRoutes from "./routes/categories.js";
+import consignmentRoutes, { confirmConsignmentReceived, updateConsignmentShipmentStatus } from "./routes/consignments.js";
 import orderRoutes from "./routes/orders.js";
 import cartRoutes from "./routes/cart.js";
+import chatbotRoutes from "./routes/chatbot.js";
+import voucherRoutes from "./routes/vouchers.js";
 import adminRoutes from "./routes/admin.js";
+import staffRoutes from "./routes/staff.js";
+import customerRoutes from "./routes/customer.js";
 import locationRoutes from "./routes/locations.js";
 import uploadRoutes, { uploadDirectory } from "./routes/uploads.js";
 import engagementRoutes from "./routes/engagement.js";
 import { query } from "./db.js";
+import { requireAuth, requireRole } from "./middleware/auth.js";
 
 const app = express();
 const port = Number(process.env.PORT || 5000);
@@ -27,28 +33,19 @@ app.get("/api/health", async (_req, res, next) => {
   }
 });
 
-app.get("/api/categories", async (_req, res, next) => {
-  try {
-    res.json(
-      await query(
-        `SELECT category_id AS id,
-                name,
-                CAST(category_id AS CHAR) AS slug
-         FROM categories
-         ORDER BY name`,
-      ),
-    );
-  } catch (error) {
-    next(error);
-  }
-});
-
 app.use("/api/auth", authRoutes);
+app.use("/api/categories", categoryRoutes);
+app.use("/api/vouchers", voucherRoutes);
 app.use("/api/products", productRoutes);
+app.patch("/api/staff/consignment-requests/:id/confirm-received", requireAuth, requireRole("staff", "admin"), confirmConsignmentReceived);
+app.patch("/api/staff/consignment-requests/:id/shipping-status", requireAuth, requireRole("staff", "admin"), updateConsignmentShipmentStatus);
 app.use("/api/consignments", consignmentRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/cart", cartRoutes);
+app.use("/api/chatbot", chatbotRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/staff", staffRoutes);
+app.use("/api/customer", customerRoutes);
 app.use("/api/locations", locationRoutes);
 app.use("/api/uploads", express.static(uploadDirectory));
 app.use("/api/uploads", uploadRoutes);
@@ -71,7 +68,7 @@ app.use((error, _req, res, _next) => {
   return res.status(500).json({ message: "Lỗi máy chủ." });
 });
 
-Promise.all([ensureOrderSchema(), ensureSystemSettingsSchema(), ensureEngagementSchema(), ensureCartSchema()])
+Promise.all([ensureOrderSchema(), ensureCategorySchema(), ensureVoucherSchema(), ensureConsignmentShippingSchema(), ensureConsignmentCancelSchema(), ensureDisbursementSchema(), ensureSystemSettingsSchema(), ensureEngagementSchema(), ensureCartSchema(), ensureUserProfileSchema(), ensureDisbursementHolderSchema(), ensureCustomerPaymentInfoSchema()])
   .then(() => {
     app.listen(port, () => {
       console.log(`API server running at http://localhost:${port}`);
@@ -106,6 +103,116 @@ async function ensureOrderSchema() {
   }
 }
 
+async function ensureCategorySchema() {
+  const requiredColumns = [
+    ["description", "TEXT NULL AFTER name"],
+    ["status", "ENUM('active', 'inactive', 'locked') NOT NULL DEFAULT 'active' AFTER description"],
+    ["updated_at", "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at"],
+  ];
+
+  for (const [columnName, definition] of requiredColumns) {
+    const columns = await query(`SHOW COLUMNS FROM categories LIKE '${columnName}'`);
+    if (!columns.length) {
+      await query(`ALTER TABLE categories ADD COLUMN ${columnName} ${definition}`);
+    }
+  }
+}
+
+async function ensureVoucherSchema() {
+  const requiredColumns = [
+    ["name", "VARCHAR(150) DEFAULT NULL AFTER code"],
+    ["description", "TEXT NULL AFTER name"],
+    ["updated_at", "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at"],
+  ];
+
+  for (const [columnName, definition] of requiredColumns) {
+    const columns = await query(`SHOW COLUMNS FROM vouchers LIKE '${columnName}'`);
+    if (!columns.length) {
+      await query(`ALTER TABLE vouchers ADD COLUMN ${columnName} ${definition}`);
+    }
+  }
+}
+
+async function ensureConsignmentShippingSchema() {
+  const statusColumns = await query(
+    `SELECT COLUMN_TYPE AS columnType
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'shipping_orders'
+       AND COLUMN_NAME = 'status'`,
+  );
+
+  const shippingColumnType = String(statusColumns[0]?.columnType || "");
+  if (statusColumns.length && (!shippingColumnType.includes("'received'") || !shippingColumnType.includes("'cancelled'"))) {
+    await query(
+      `ALTER TABLE shipping_orders
+       MODIFY COLUMN status ENUM('pending', 'picked_up', 'shipping', 'delivered', 'received', 'cancelled', 'failed', 'returned') NOT NULL DEFAULT 'pending'`,
+    );
+  }
+
+  const requiredColumns = [
+    ["expected_delivery", "DATETIME DEFAULT NULL AFTER status"],
+    ["delivered_at", "DATETIME DEFAULT NULL AFTER expected_delivery"],
+    ["received_at", "DATETIME DEFAULT NULL AFTER delivered_at"],
+  ];
+
+  for (const [columnName, definition] of requiredColumns) {
+    const columns = await query(`SHOW COLUMNS FROM shipping_orders LIKE '${columnName}'`);
+    if (!columns.length) {
+      await query(`ALTER TABLE shipping_orders ADD COLUMN ${columnName} ${definition}`);
+    }
+  }
+}
+
+async function ensureConsignmentCancelSchema() {
+  const statusColumns = await query(
+    `SELECT COLUMN_TYPE AS columnType
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'consignment_requests'
+       AND COLUMN_NAME = 'status'`,
+  );
+  const requestStatusType = String(statusColumns[0]?.columnType || "");
+  if (statusColumns.length && (!requestStatusType.includes("'cancel_requested'") || !requestStatusType.includes("'cancelled_by_customer'"))) {
+    await query(
+      `ALTER TABLE consignment_requests
+       MODIFY COLUMN status ENUM(
+         'pending',
+         'approved',
+         'rejected',
+         'waiting_receive',
+         'processing',
+         'completed',
+         'waiting_return',
+         'returned',
+         'cancel_requested',
+         'cancelled_by_customer',
+         'cancelled'
+       ) NOT NULL DEFAULT 'pending'`,
+    );
+  }
+
+  const requiredColumns = [
+    ["cancelled_by", "INT DEFAULT NULL AFTER cancelled_at"],
+    ["cancel_requested_at", "DATETIME DEFAULT NULL AFTER cancelled_by"],
+    ["cancel_request_status", "VARCHAR(50) DEFAULT NULL AFTER cancel_requested_at"],
+  ];
+
+  for (const [columnName, definition] of requiredColumns) {
+    const columns = await query(`SHOW COLUMNS FROM consignment_requests LIKE '${columnName}'`);
+    if (!columns.length) {
+      await query(`ALTER TABLE consignment_requests ADD COLUMN ${columnName} ${definition}`);
+    }
+  }
+}
+
+async function ensureDisbursementSchema() {
+  const staffColumns = await query("SHOW COLUMNS FROM disbursements LIKE 'disbursed_by_staff_id'");
+  if (!staffColumns.length) {
+    await query("ALTER TABLE disbursements ADD COLUMN disbursed_by_staff_id INT NULL AFTER disbursed_at");
+  }
+}
+
 async function ensureSystemSettingsSchema() {
   await query(`
     CREATE TABLE IF NOT EXISTS system_settings (
@@ -137,6 +244,39 @@ async function ensureEngagementSchema() {
       file_name VARCHAR(255) NOT NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       INDEX idx_report_exports_user_created (user_id, created_at)
+    )
+  `);
+}
+
+async function ensureUserProfileSchema() {
+  const birthdayCol = await query("SHOW COLUMNS FROM users LIKE 'birthday'");
+  if (!birthdayCol.length) {
+    await query("ALTER TABLE users ADD COLUMN birthday DATE NULL AFTER phone");
+  }
+  const genderCol = await query("SHOW COLUMNS FROM users LIKE 'gender'");
+  if (!genderCol.length) {
+    await query("ALTER TABLE users ADD COLUMN gender ENUM('male','female','other') NULL AFTER birthday");
+  }
+}
+
+async function ensureDisbursementHolderSchema() {
+  const holderCol = await query("SHOW COLUMNS FROM disbursements LIKE 'bank_account_holder'");
+  if (!holderCol.length) {
+    await query("ALTER TABLE disbursements ADD COLUMN bank_account_holder VARCHAR(150) NULL AFTER bank_name");
+  }
+}
+
+async function ensureCustomerPaymentInfoSchema() {
+  await query(`
+    CREATE TABLE IF NOT EXISTS user_payment_info (
+      user_id INT NOT NULL,
+      bank_name VARCHAR(120) DEFAULT NULL,
+      bank_account_number VARCHAR(100) DEFAULT NULL,
+      bank_account_holder VARCHAR(150) DEFAULT NULL,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (user_id),
+      CONSTRAINT fk_user_payment_info_user FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE
     )
   `);
 }

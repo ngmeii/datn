@@ -9,13 +9,19 @@ const statusText = {
   rejected: "Từ chối",
   received: "Đã tiếp nhận",
   inspecting: "Đang kiểm định",
-  priced: "Đã định giá",
-  seller_confirmed: "Người bán đã xác nhận",
+  priced: "Chờ xác nhận giá",
+  seller_confirmed: "Chờ đăng bán",
   seller_cancelled: "Đã hủy ký gửi",
   listed: "Đang đăng bán",
   sold: "Đã bán",
+  waiting_payout: "Chờ giải ngân",
+  paid_out: "Đã giải ngân",
+  payout_failed: "Giải ngân thất bại",
   expired: "Hết hạn",
   returned: "Đã hoàn trả",
+  shipping_pending: "Chờ GHN lấy hàng",
+  shipping_in_transit: "Đang vận chuyển",
+  shipping_delivered: "Đã giao đến cửa hàng",
 };
 
 const orderStatusText = {
@@ -42,7 +48,7 @@ export default function DashboardPage({ staffOnly = false }) {
   async function loadData() {
     if (!user) return;
     const [consignmentData, orderData, summaryData] = await Promise.all([
-      api("/consignments").catch(() => []),
+      api(isStaff ? "/consignments" : "/customer/consignment-requests").catch(() => []),
       api("/orders").catch(() => []),
       isStaff ? api("/admin/summary").catch(() => null) : Promise.resolve(null),
     ]);
@@ -140,19 +146,30 @@ export default function DashboardPage({ staffOnly = false }) {
 
 function ConsignmentRow({ item, isStaff, onAction }) {
   const [price, setPrice] = useState(item.final_price || item.expected_price || 0);
+  const navigate = useNavigate();
+  const displayStatus = item.display_status || statusText[item.status] || item.status;
 
   return (
-    <div className="border-b border-black/10 py-5 last:border-b-0">
+    <div
+      role={!isStaff ? "link" : undefined}
+      tabIndex={!isStaff ? 0 : undefined}
+      onClick={!isStaff ? () => navigate(`/account/consignments/${item.id}`) : undefined}
+      onKeyDown={!isStaff ? (event) => {
+        if (event.key === "Enter" || event.key === " ") navigate(`/account/consignments/${item.id}`);
+      } : undefined}
+      className={`border-b border-black/10 px-3 py-5 transition last:border-b-0 ${!isStaff ? "cursor-pointer hover:bg-cream" : ""}`}
+    >
       <div className="flex flex-wrap justify-between gap-4">
         <div>
           <p className="font-bold">{item.product_name}</p>
           <p className="mt-1 text-sm text-ink/55">
-            {item.seller_name || item.category_name} · Dự kiến {formatMoney(item.expected_price)}
+            {item.seller_name || item.category_name} · Dự kiến {formatMoney(item.expected_price || item.proposed_price)}
           </p>
           {item.final_price && <p className="mt-1 text-sm font-semibold text-moss">Giá định: {formatMoney(item.final_price)}</p>}
+          {item.sale_price ? <p className="mt-1 text-sm font-semibold text-clay">Giá bán: {formatMoney(item.sale_price)}</p> : null}
         </div>
         <span className="h-fit rounded-full bg-linen px-3 py-1 text-xs font-bold">
-          {statusText[item.status] || item.status}
+          {displayStatus}
         </span>
       </div>
 
@@ -194,12 +211,12 @@ function ConsignmentRow({ item, isStaff, onAction }) {
         </div>
       ) : (
         item.status === "priced" && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            <ActionButton onClick={() => onAction(() => api(`/consignments/${item.id}/confirm`, { method: "PATCH" }))}>
+          <div className="mt-4 flex flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
+            <ActionButton onClick={() => onAction(() => api(`/customer/consignment-requests/${item.id}/confirm-price`, { method: "PATCH" }))}>
               Xác nhận ký gửi
             </ActionButton>
-            <ActionButton muted onClick={() => onAction(() => api(`/consignments/${item.id}/cancel`, { method: "PATCH", body: JSON.stringify({ reason: "Người bán hủy ký gửi sau định giá." }) }))}>
-              Hủy ký gửi
+            <ActionButton muted onClick={() => onAction(() => api(`/customer/consignment-requests/${item.id}/reject-price`, { method: "PATCH", body: JSON.stringify({ reason: "Người bán từ chối giá ký gửi." }) }))}>
+              Từ chối ký gửi
             </ActionButton>
           </div>
         )
@@ -286,6 +303,7 @@ function Panel({ title, children }) {
 function ActionButton({ children, muted, ...props }) {
   return (
     <button
+      type="button"
       className={muted ? "rounded-full border border-black/10 px-4 py-2 text-sm font-bold" : "rounded-full bg-ink px-4 py-2 text-sm font-bold text-white"}
       {...props}
     >
