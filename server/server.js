@@ -41,6 +41,7 @@ app.patch("/api/staff/consignment-requests/:id/confirm-received", requireAuth, r
 app.patch("/api/staff/consignment-requests/:id/shipping-status", requireAuth, requireRole("staff", "admin"), updateConsignmentShipmentStatus);
 app.use("/api/consignments", consignmentRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/customer/orders", orderRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/chatbot", chatbotRoutes);
 app.use("/api/admin", adminRoutes);
@@ -68,7 +69,7 @@ app.use((error, _req, res, _next) => {
   return res.status(500).json({ message: "Lỗi máy chủ." });
 });
 
-Promise.all([ensureOrderSchema(), ensureCategorySchema(), ensureVoucherSchema(), ensureConsignmentShippingSchema(), ensureConsignmentCancelSchema(), ensureDisbursementSchema(), ensureSystemSettingsSchema(), ensureEngagementSchema(), ensureCartSchema(), ensureUserProfileSchema(), ensureDisbursementHolderSchema(), ensureCustomerPaymentInfoSchema()])
+initializeSchema()
   .then(() => {
     app.listen(port, () => {
       console.log(`API server running at http://localhost:${port}`);
@@ -78,6 +79,29 @@ Promise.all([ensureOrderSchema(), ensureCategorySchema(), ensureVoucherSchema(),
     console.error("Unable to initialize database schema:", error);
     process.exit(1);
   });
+
+async function initializeSchema() {
+  const migrations = [
+    ensureOrderSchema,
+    ensureCategorySchema,
+    ensureVoucherSchema,
+    ensurePaymentStatusSchema,
+    ensureConsignmentShippingSchema,
+    ensureConsignmentCancelSchema,
+    ensureDisbursementSchema,
+    ensureSystemSettingsSchema,
+    ensureEngagementSchema,
+    ensureCartSchema,
+    ensureUserProfileSchema,
+    ensureDisbursementHolderSchema,
+    ensureCustomerPaymentInfoSchema,
+    ensureErdRelationshipSchema,
+  ];
+
+  for (const migration of migrations) {
+    await migration();
+  }
+}
 
 async function ensureOrderSchema() {
   const columns = await query("SHOW COLUMNS FROM orders LIKE 'receiver_email'");
@@ -130,6 +154,22 @@ async function ensureVoucherSchema() {
     if (!columns.length) {
       await query(`ALTER TABLE vouchers ADD COLUMN ${columnName} ${definition}`);
     }
+  }
+}
+
+async function ensurePaymentStatusSchema() {
+  const statusColumns = await query(
+    `SELECT COLUMN_TYPE AS columnType
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'orders'
+       AND COLUMN_NAME = 'payment_status'`,
+  );
+  const paymentStatusType = String(statusColumns[0]?.columnType || "");
+  if (statusColumns.length && (!paymentStatusType.includes("'pending'") || !paymentStatusType.includes("'failed'"))) {
+    await query(
+      "ALTER TABLE orders MODIFY COLUMN payment_status ENUM('unpaid', 'pending', 'paid', 'failed', 'refunded') NOT NULL DEFAULT 'unpaid'",
+    );
   }
 }
 
@@ -213,6 +253,102 @@ async function ensureDisbursementSchema() {
   }
 }
 
+async function ensureErdRelationshipSchema() {
+  const operations = [
+    () => ensureIndex("consignment_items", "idx_consignment_item_category", "ALTER TABLE consignment_items ADD KEY idx_consignment_item_category (category_id)"),
+    () => ensureForeignKey("consignment_items", "fk_consignment_item_category", "ALTER TABLE consignment_items ADD CONSTRAINT fk_consignment_item_category FOREIGN KEY (category_id) REFERENCES categories (category_id) ON DELETE SET NULL"),
+    () => ensureUniqueIndex("shipping_orders", "uq_shipping_orders_request_id", "request_id", "ALTER TABLE shipping_orders ADD UNIQUE KEY uq_shipping_orders_request_id (request_id)"),
+    () => ensureUniqueIndex("products", "uq_products_consignment_item_id", "consignment_item_id", "ALTER TABLE products ADD UNIQUE KEY uq_products_consignment_item_id (consignment_item_id)"),
+    () => ensureUniqueIndex("order_items", "uq_order_items_product_id", "product_id", "ALTER TABLE order_items ADD UNIQUE KEY uq_order_items_product_id (product_id)"),
+    () => ensureUniqueIndex("carts", "uq_carts_user_id", "user_id", "ALTER TABLE carts ADD UNIQUE KEY uq_carts_user_id (user_id)"),
+    () => ensureUniqueIndex("order_deliveries", "uq_order_deliveries_order_id", "order_id", "ALTER TABLE order_deliveries ADD UNIQUE KEY uq_order_deliveries_order_id (order_id)"),
+    () => ensureUniqueIndex("payments", "uq_payments_order_id", "order_id", "ALTER TABLE payments ADD UNIQUE KEY uq_payments_order_id (order_id)"),
+    () => ensureUniqueIndex("invoices", "uq_invoices_payment_id", "payment_id", "ALTER TABLE invoices ADD UNIQUE KEY uq_invoices_payment_id (payment_id)"),
+    () => ensureUniqueIndex("disbursements", "uq_disbursements_order_item_id", "order_item_id", "ALTER TABLE disbursements ADD UNIQUE KEY uq_disbursements_order_item_id (order_item_id)"),
+    () => ensureReviewItemUniqueIndex(),
+    () => ensureReportExportsUserRelationship(),
+  ];
+
+  for (const operation of operations) {
+    await operation();
+  }
+}
+
+async function ensureUniqueIndex(tableName, indexName, columnName, alterSql) {
+  const indexes = await query(
+    `SELECT INDEX_NAME AS indexName,
+            NON_UNIQUE AS nonUnique,
+            GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX) AS columns
+     FROM INFORMATION_SCHEMA.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = :tableName
+     GROUP BY INDEX_NAME, NON_UNIQUE`,
+    { tableName },
+  );
+  const hasEquivalent = indexes.some((index) => Number(index.nonUnique) === 0 && String(index.columns) === columnName);
+  if (hasEquivalent) return;
+  const existsByName = indexes.some((index) => index.indexName === indexName);
+  if (!existsByName) await query(alterSql);
+}
+
+async function ensureIndex(tableName, indexName, alterSql) {
+  const indexes = await query(
+    `SELECT INDEX_NAME AS indexName
+     FROM INFORMATION_SCHEMA.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = :tableName
+       AND INDEX_NAME = :indexName
+     LIMIT 1`,
+    { tableName, indexName },
+  );
+  if (!indexes.length) await query(alterSql);
+}
+
+async function ensureForeignKey(tableName, constraintName, alterSql) {
+  const constraints = await query(
+    `SELECT CONSTRAINT_NAME AS constraintName
+     FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = :tableName
+       AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+       AND CONSTRAINT_NAME = :constraintName
+     LIMIT 1`,
+    { tableName, constraintName },
+  );
+  if (!constraints.length) await query(alterSql);
+}
+
+async function ensureReviewItemUniqueIndex() {
+  await ensureUniqueIndex("reviews", "uq_reviews_item_id", "item_id", "ALTER TABLE reviews ADD UNIQUE KEY uq_reviews_item_id (item_id)");
+}
+
+async function ensureReportExportsUserRelationship() {
+  const userColumns = await query(
+    `SELECT COLUMN_TYPE AS columnType
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'report_exports'
+       AND COLUMN_NAME = 'user_id'`,
+  );
+  const columnType = String(userColumns[0]?.columnType || "");
+  if (columnType && !/^int/i.test(columnType)) {
+    const foreignKeys = await query(
+      `SELECT CONSTRAINT_NAME AS constraintName
+       FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'report_exports'
+         AND COLUMN_NAME = 'user_id'
+         AND REFERENCED_TABLE_NAME IS NOT NULL`,
+    );
+    for (const foreignKey of foreignKeys) {
+      await query(`ALTER TABLE report_exports DROP FOREIGN KEY ${foreignKey.constraintName}`);
+    }
+    await query("ALTER TABLE report_exports MODIFY COLUMN user_id INT NULL");
+  }
+  await ensureIndex("report_exports", "idx_report_exports_user_created", "ALTER TABLE report_exports ADD KEY idx_report_exports_user_created (user_id, created_at)");
+  await ensureForeignKey("report_exports", "fk_report_exports_user", "ALTER TABLE report_exports ADD CONSTRAINT fk_report_exports_user FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE SET NULL");
+}
+
 async function ensureSystemSettingsSchema() {
   await query(`
     CREATE TABLE IF NOT EXISTS system_settings (
@@ -237,7 +373,7 @@ async function ensureEngagementSchema() {
   await query(`
     CREATE TABLE IF NOT EXISTS report_exports (
       export_id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
-      user_id BIGINT UNSIGNED NULL,
+      user_id INT NULL,
       report_type VARCHAR(50) NOT NULL DEFAULT 'overview',
       period_start DATE NOT NULL,
       period_end DATE NOT NULL,

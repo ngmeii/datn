@@ -292,7 +292,6 @@ export default function ConsignPage() {
               className="mt-2 h-12 w-full rounded-md border border-black/10 px-4"
             >
               <option value="drop_off">Tự mang đến cửa hàng</option>
-              <option value="pickup">Cửa hàng lấy hàng tại nhà</option>
               <option value="shipping">Tạo vận đơn GHN gửi về cửa hàng</option>
             </select>
           </label>

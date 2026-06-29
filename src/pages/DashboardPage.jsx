@@ -12,6 +12,8 @@ const statusText = {
   priced: "Chờ xác nhận giá",
   seller_confirmed: "Chờ đăng bán",
   seller_cancelled: "Đã hủy ký gửi",
+  cancel_requested: "Đang chờ staff xử lý hủy",
+  cancel_rejected: "Yêu cầu hủy bị từ chối",
   listed: "Đang đăng bán",
   sold: "Đã bán",
   waiting_payout: "Chờ giải ngân",
@@ -42,6 +44,8 @@ export default function DashboardPage({ staffOnly = false }) {
   const [orders, setOrders] = useState([]);
   const [adminData, setAdminData] = useState(null);
   const [message, setMessage] = useState("");
+  const [cancelTarget, setCancelTarget] = useState(null);
+  const [canceling, setCanceling] = useState(false);
 
   const isStaff = user && ["staff", "admin"].includes(user.role);
 
@@ -69,6 +73,26 @@ export default function DashboardPage({ staffOnly = false }) {
       await loadData();
     } catch (error) {
       setMessage(error.message);
+    }
+  }
+
+  async function submitCancelRequest(reason) {
+    if (!cancelTarget) return;
+    setCanceling(true);
+    setMessage("");
+    try {
+      const path = cancelTarget.cancel_action === "cancel" ? "cancel" : "request-cancel";
+      const result = await api(`/customer/consignment-requests/${cancelTarget.id}/${path}`, {
+        method: "PATCH",
+        body: JSON.stringify({ reason }),
+      });
+      setMessage(result?.message || "Đã cập nhật yêu cầu ký gửi.");
+      setCancelTarget(null);
+      await loadData();
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setCanceling(false);
     }
   }
 
@@ -123,7 +147,7 @@ export default function DashboardPage({ staffOnly = false }) {
         <Panel title={isStaff ? "Duyệt và xử lý ký gửi" : "Trạng thái ký gửi của tôi"}>
           {consignments.length ? (
             consignments.map((item) => (
-              <ConsignmentRow key={item.id} item={item} isStaff={isStaff} onAction={runAction} />
+              <ConsignmentRow key={item.id} item={item} isStaff={isStaff} onAction={runAction} onCancelClick={setCancelTarget} />
             ))
           ) : (
             <Empty text="Chưa có yêu cầu ký gửi." />
@@ -140,11 +164,19 @@ export default function DashboardPage({ staffOnly = false }) {
           )}
         </Panel>
       </section>
+      {cancelTarget && (
+        <CancelConsignmentModal
+          item={cancelTarget}
+          loading={canceling}
+          onClose={() => !canceling && setCancelTarget(null)}
+          onSubmit={submitCancelRequest}
+        />
+      )}
     </main>
   );
 }
 
-function ConsignmentRow({ item, isStaff, onAction }) {
+function ConsignmentRow({ item, isStaff, onAction, onCancelClick }) {
   const [price, setPrice] = useState(item.final_price || item.expected_price || 0);
   const navigate = useNavigate();
   const displayStatus = item.display_status || statusText[item.status] || item.status;
@@ -210,20 +242,86 @@ function ConsignmentRow({ item, isStaff, onAction }) {
           )}
         </div>
       ) : (
-        item.status === "priced" && (
-          <div className="mt-4 flex flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
-            <ActionButton onClick={() => onAction(() => api(`/customer/consignment-requests/${item.id}/confirm-price`, { method: "PATCH" }))}>
-              Xác nhận ký gửi
+        <div className="mt-4 flex flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
+          {item.status === "priced" && (
+            <>
+              <ActionButton onClick={() => onAction(() => api(`/customer/consignment-requests/${item.id}/confirm-price`, { method: "PATCH" }))}>
+                Xác nhận ký gửi
+              </ActionButton>
+              <ActionButton muted onClick={() => onAction(() => api(`/customer/consignment-requests/${item.id}/reject-price`, { method: "PATCH", body: JSON.stringify({ reason: "Người bán từ chối giá ký gửi." }) }))}>
+                Từ chối ký gửi
+              </ActionButton>
+            </>
+          )}
+          {item.cancel_action ? (
+            <ActionButton danger onClick={() => onCancelClick(item)}>
+              {item.cancel_action === "cancel" ? "Hủy yêu cầu ký gửi" : "Gửi yêu cầu hủy"}
             </ActionButton>
-            <ActionButton muted onClick={() => onAction(() => api(`/customer/consignment-requests/${item.id}/reject-price`, { method: "PATCH", body: JSON.stringify({ reason: "Người bán từ chối giá ký gửi." }) }))}>
-              Từ chối ký gửi
-            </ActionButton>
-          </div>
-        )
+          ) : null}
+        </div>
       )}
     </div>
   );
 }
+
+function CancelConsignmentModal({ item, loading, onClose, onSubmit }) {
+  const [reason, setReason] = useState(cancelReasons[0]);
+  const isDirectCancel = item.cancel_action === "cancel";
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    onSubmit(reason);
+  }
+
+  return (
+    <div className="fixed inset-0 z-[90] grid place-items-center bg-ink/40 px-4 backdrop-blur-sm">
+      <section className="w-full max-w-lg rounded-2xl border border-border bg-white p-6 shadow-soft">
+        <h2 className="font-display text-3xl font-bold">
+          {isDirectCancel ? "Hủy yêu cầu ký gửi?" : "Gửi yêu cầu hủy ký gửi?"}
+        </h2>
+        <p className="mt-3 text-sm leading-6 text-muted">
+          {isDirectCancel
+            ? "Bạn có chắc chắn muốn hủy yêu cầu ký gửi này không? Sau khi hủy, yêu cầu sẽ không được tiếp tục xử lý."
+            : "Yêu cầu ký gửi này đang được xử lý hoặc sản phẩm đã được gửi đến cửa hàng. Staff sẽ kiểm tra và phản hồi sau."}
+        </p>
+        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+          <label className="block">
+            <span className="text-sm font-bold text-ink">Lý do hủy</span>
+            <select
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              className="mt-2 h-12 w-full rounded-md border border-border bg-white px-4 text-sm outline-none focus:border-clay"
+            >
+              {cancelReasons.map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
+          </label>
+          <textarea
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            rows="3"
+            className="w-full rounded-md border border-border px-4 py-3 text-sm outline-none focus:border-clay"
+          />
+          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+            <button type="button" onClick={onClose} disabled={loading} className="h-11 rounded-full border border-border px-6 text-sm font-bold text-muted disabled:opacity-60">
+              Đóng
+            </button>
+            <button disabled={loading} className="h-11 rounded-full bg-ink px-6 text-sm font-bold text-white disabled:opacity-60">
+              {isDirectCancel ? "Xác nhận hủy" : "Gửi yêu cầu hủy"}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  );
+}
+
+const cancelReasons = [
+  "Tôi không còn muốn ký gửi sản phẩm",
+  "Tôi muốn chỉnh sửa lại thông tin sản phẩm",
+  "Tôi đã bán sản phẩm ở nơi khác",
+  "Phí vận chuyển không phù hợp",
+  "Lý do khác",
+];
 
 function OrderRow({ order, isStaff, onAction }) {
   const navigate = useNavigate();
@@ -300,11 +398,17 @@ function Panel({ title, children }) {
   );
 }
 
-function ActionButton({ children, muted, ...props }) {
+function ActionButton({ children, muted, danger, ...props }) {
+  const className = danger
+    ? "rounded-full border border-red-300 px-4 py-2 text-sm font-bold text-red-600"
+    : muted
+      ? "rounded-full border border-black/10 px-4 py-2 text-sm font-bold"
+      : "rounded-full bg-ink px-4 py-2 text-sm font-bold text-white";
+
   return (
     <button
       type="button"
-      className={muted ? "rounded-full border border-black/10 px-4 py-2 text-sm font-bold" : "rounded-full bg-ink px-4 py-2 text-sm font-bold text-white"}
+      className={className}
       {...props}
     >
       {children}

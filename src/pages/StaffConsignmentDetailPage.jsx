@@ -29,6 +29,8 @@ const statusLabels = {
   priced: "Chờ người bán xác nhận",
   seller_confirmed: "Chờ đăng bán",
   seller_cancelled: "Đã hủy ký gửi",
+  cancel_requested: "Khách yêu cầu hủy",
+  cancel_rejected: "Yêu cầu hủy bị từ chối",
   listed: "Đang đăng bán",
   rejected: "Từ chối",
   sold: "Đã bán",
@@ -50,6 +52,8 @@ const statusStyles = {
   priced: "bg-info/10 text-info",
   seller_confirmed: "bg-success/10 text-success",
   seller_cancelled: "bg-danger/10 text-danger",
+  cancel_requested: "bg-[#f4eadf] text-[#8a572f]",
+  cancel_rejected: "bg-danger/10 text-danger",
   listed: "bg-success/10 text-success",
   rejected: "bg-danger/10 text-danger",
   sold: "bg-success/10 text-success",
@@ -188,9 +192,39 @@ export default function StaffConsignmentDetailPage() {
                     </h1>
                     <p className="mt-3 text-sm text-[#7c6e62]">Tạo lúc {formatDateTime(request.created_at)}</p>
                   </div>
-                  <StatusBadge status={request.status} />
+                  <div className="flex flex-col items-end gap-3">
+                    <StatusBadge status={request.status} />
+                    {request.status === "cancel_requested" ? (
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <ActionButton
+                          icon={CheckCircle2}
+                          loading={pendingAction === "approve-cancel"}
+                          disabled={Boolean(pendingAction)}
+                          onClick={() => runAction("approve-cancel", () => api(`/staff/consignment-requests/${request.id}/cancel-request/approve`, { method: "PATCH" }))}
+                        >
+                          Chấp nhận hủy
+                        </ActionButton>
+                        <ActionButton
+                          tone="danger"
+                          icon={XCircle}
+                          loading={pendingAction === "reject-cancel"}
+                          disabled={Boolean(pendingAction)}
+                          onClick={() => runAction("reject-cancel", () => api(`/staff/consignment-requests/${request.id}/cancel-request/reject`, { method: "PATCH", body: JSON.stringify({ reason: "Staff từ chối yêu cầu hủy." }) }))}
+                        >
+                          Từ chối hủy
+                        </ActionButton>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
                 {message && <p className="mt-6 rounded-md bg-[#f2e4d8] px-4 py-3 text-sm font-semibold text-[#7a4b2d]">{message}</p>}
+                {request.cancel_request_status || request.cancel_reason ? (
+                  <div className="mt-5 rounded-md border border-[#eadfd4] bg-[#fbf7f2] px-4 py-3 text-sm leading-6 text-[#6d6057]">
+                    {request.cancel_request_status === "pending" ? <p className="font-bold text-[#8a572f]">Khách đã gửi yêu cầu hủy ký gửi.</p> : null}
+                    {request.cancel_reason ? <p>Lý do: {request.cancel_reason}</p> : null}
+                    {request.cancel_requested_at ? <p>Thời gian gửi: {formatDateTime(request.cancel_requested_at)}</p> : null}
+                  </div>
+                ) : null}
               </header>
 
               <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">

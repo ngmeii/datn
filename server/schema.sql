@@ -88,7 +88,9 @@ CREATE TABLE IF NOT EXISTS consignment_items (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (consignment_item_id),
   KEY fk_consignment_item_request (request_id),
-  CONSTRAINT fk_consignment_item_request FOREIGN KEY (request_id) REFERENCES consignment_requests (request_id) ON DELETE CASCADE
+  KEY idx_consignment_item_category (category_id),
+  CONSTRAINT fk_consignment_item_request FOREIGN KEY (request_id) REFERENCES consignment_requests (request_id) ON DELETE CASCADE,
+  CONSTRAINT fk_consignment_item_category FOREIGN KEY (category_id) REFERENCES categories (category_id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS vouchers (
@@ -157,7 +159,7 @@ CREATE TABLE IF NOT EXISTS orders (
   discount_amount DECIMAL(12, 0) NOT NULL DEFAULT '0',
   total_amount DECIMAL(12, 0) NOT NULL,
   payment_method ENUM('cod', 'online', 'bank_transfer') NOT NULL,
-  payment_status ENUM('unpaid', 'paid', 'refunded') NOT NULL DEFAULT 'unpaid',
+  payment_status ENUM('unpaid', 'pending', 'paid', 'failed', 'refunded') NOT NULL DEFAULT 'unpaid',
   order_status ENUM(
     'waiting_payment',
     'waiting_confirm',
@@ -186,6 +188,7 @@ CREATE TABLE IF NOT EXISTS order_items (
   price_snapshot DECIMAL(12, 0) NOT NULL,
   commission_rate DECIMAL(5, 2) NOT NULL,
   PRIMARY KEY (item_id),
+  UNIQUE KEY uq_order_items_product_id (product_id),
   KEY fk_item_order (order_id),
   KEY fk_item_product (product_id),
   CONSTRAINT fk_item_order FOREIGN KEY (order_id) REFERENCES orders (order_id) ON DELETE CASCADE,
@@ -201,6 +204,7 @@ CREATE TABLE IF NOT EXISTS payments (
   paid_at DATETIME DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (payment_id),
+  UNIQUE KEY uq_payments_order_id (order_id),
   KEY fk_payments_order (order_id),
   CONSTRAINT fk_payments_order FOREIGN KEY (order_id) REFERENCES orders (order_id) ON DELETE CASCADE
 );
@@ -215,6 +219,7 @@ CREATE TABLE IF NOT EXISTS invoices (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (invoice_id),
   UNIQUE KEY uq_invoices_code (invoice_code),
+  UNIQUE KEY uq_invoices_payment_id (payment_id),
   KEY fk_invoices_payment (payment_id),
   CONSTRAINT fk_invoices_payment FOREIGN KEY (payment_id) REFERENCES payments (payment_id) ON DELETE CASCADE
 );
@@ -244,7 +249,7 @@ CREATE TABLE IF NOT EXISTS reviews (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (review_id),
-  UNIQUE KEY uq_reviews_item_buyer (item_id, buyer_id),
+  UNIQUE KEY uq_reviews_item_id (item_id),
   KEY fk_reviews_buyer (buyer_id),
   CONSTRAINT chk_reviews_rating CHECK (rating BETWEEN 1 AND 5),
   CONSTRAINT fk_reviews_item FOREIGN KEY (item_id) REFERENCES order_items (item_id) ON DELETE CASCADE,
@@ -362,14 +367,15 @@ CREATE TABLE IF NOT EXISTS newsletter_subscribers (
 
 CREATE TABLE IF NOT EXISTS report_exports (
   export_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  user_id BIGINT UNSIGNED DEFAULT NULL,
+  user_id INT DEFAULT NULL,
   report_type VARCHAR(50) NOT NULL DEFAULT 'overview',
   period_start DATE NOT NULL,
   period_end DATE NOT NULL,
   file_name VARCHAR(255) NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (export_id),
-  KEY idx_report_exports_user_created (user_id, created_at)
+  KEY idx_report_exports_user_created (user_id, created_at),
+  CONSTRAINT fk_report_exports_user FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE SET NULL
 );
 
 INSERT IGNORE INTO categories (category_id, name) VALUES

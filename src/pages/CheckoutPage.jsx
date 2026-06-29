@@ -1,12 +1,12 @@
-﻿import { Loader2 } from "lucide-react";
-import { CheckCircle2, X } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, formatMoney, getCurrentUser } from "../lib/api.js";
 import { clearCart, clearCheckoutItems, getCheckoutItems, removeFromCart } from "../lib/cart.js";
 
 export default function CheckoutPage() {
   const [params] = useSearchParams();
+  const navigate = useNavigate();
   const productId = params.get("productId");
   const user = getCurrentUser();
   const [items, setItems] = useState([]);
@@ -25,9 +25,7 @@ export default function CheckoutPage() {
   const [districtLoading, setDistrictLoading] = useState(false);
   const [wardLoading, setWardLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("cod");
-  const [transferContent] = useState(() => `HEIRLOOM ${Date.now().toString().slice(-8)}`);
   const [fieldErrors, setFieldErrors] = useState({});
-  const [successOrder, setSuccessOrder] = useState(null);
 
   useEffect(() => {
     if (productId) {
@@ -228,8 +226,7 @@ export default function CheckoutPage() {
       }
 
       setItems([]);
-      setSuccessOrder(order);
-      setMessage(`Đã tạo đơn hàng #${order.id}. Mã vận đơn GHN: ${order.ghnOrderCode || "đang cập nhật"}. Tổng thanh toán: ${formatMoney(order.total)}.`);
+      navigate(`/order-success/${order.id}`, { state: { order } });
     } catch (error) {
       setMessage(error.message);
     } finally {
@@ -245,10 +242,6 @@ export default function CheckoutPage() {
   const shippingFee = quotedShippingFee || fallbackShippingFee;
   const total = quote && quotedShippingFee ? Number(quote.total || 0) : discountedSubtotal + shippingFee;
   const hasFieldErrors = Object.values(fieldErrors).some(Boolean);
-  const bankCode = import.meta.env.VITE_BANK_CODE || "MB";
-  const bankAccount = import.meta.env.VITE_BANK_ACCOUNT || "0123456789";
-  const bankAccountName = import.meta.env.VITE_BANK_ACCOUNT_NAME || "THE HEIRLOOM";
-  const qrUrl = `https://img.vietqr.io/image/${encodeURIComponent(bankCode)}-${encodeURIComponent(bankAccount)}-compact2.png?amount=${Math.round(total)}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent(bankAccountName)}`;
 
   return (
     <main className="site-container grid gap-10 py-12 lg:grid-cols-[1fr_0.65fr]">
@@ -302,20 +295,11 @@ export default function CheckoutPage() {
           </label>
           {paymentMethod === "bank_transfer" && (
             <section className="rounded-xl border border-border bg-cream p-5">
-              <div className="grid items-center gap-6 sm:grid-cols-[220px_1fr]">
-                <div className="rounded-xl border border-border bg-white p-3"><img src={qrUrl} alt={`Mã QR chuyển khoản ${formatMoney(total)}`} className="aspect-square w-full object-contain" /></div>
-                <div>
-                  <p className="font-display text-2xl font-bold">Quét mã để chuyển khoản</p>
-                  <p className="mt-2 text-sm leading-6 text-muted">Vui lòng chuyển đúng số tiền và giữ nguyên nội dung để cửa hàng đối soát đơn hàng.</p>
-                  <dl className="mt-5 space-y-3 text-sm">
-                    <BankRow label="Ngân hàng" value={bankCode} />
-                    <BankRow label="Số tài khoản" value={bankAccount} />
-                    <BankRow label="Chủ tài khoản" value={bankAccountName} />
-                    <BankRow label="Số tiền" value={formatMoney(total)} strong />
-                    <BankRow label="Nội dung" value={transferContent} />
-                  </dl>
-                </div>
-              </div>
+              <p className="font-display text-2xl font-bold">Chuyển khoản sau khi tạo đơn</p>
+              <p className="mt-2 text-sm leading-6 text-muted">
+                Sau khi bấm xác nhận đặt hàng, hệ thống sẽ tạo mã đơn và hiển thị QR chuyển khoản chính xác theo mã đơn đó.
+                Đơn hàng sẽ được xử lý sau khi cửa hàng xác nhận thanh toán.
+              </p>
             </section>
           )}
           <label>
@@ -363,53 +347,7 @@ export default function CheckoutPage() {
           <p className="mt-5 text-ink/60">Chưa chọn sản phẩm để thanh toán. <Link className="font-bold underline" to="/cart">Quay lại giỏ hàng</Link></p>
         )}
       </aside>
-      {successOrder ? (
-        <OrderSuccessModal order={successOrder} canViewOrder={Boolean(user)} onClose={() => setSuccessOrder(null)} />
-      ) : null}
     </main>
-  );
-}
-
-function OrderSuccessModal({ order, canViewOrder, onClose }) {
-  return (
-    <div className="fixed inset-0 z-[90] grid place-items-center bg-ink/35 px-5 backdrop-blur-sm">
-      <section className="relative w-full max-w-[480px] rounded-2xl border border-border bg-white p-7 text-center shadow-soft">
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full border border-border text-muted transition hover:border-ink hover:text-ink"
-          aria-label="Đóng thông báo"
-        >
-          <X size={18} />
-        </button>
-        <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-success/10 text-success">
-          <CheckCircle2 size={34} />
-        </span>
-        <p className="mt-5 text-xs font-bold uppercase tracking-[0.22em] text-clay">Đặt hàng thành công</p>
-        <h2 className="mt-3 font-display text-3xl font-bold leading-tight text-ink">Cảm ơn bạn đã đặt hàng</h2>
-        <div className="mt-5 rounded-xl bg-linen px-5 py-4 text-left text-sm">
-          <SummaryRow label="Mã đơn" value={`#${order.id}`} />
-          <SummaryRow label="Mã vận đơn GHN" value={order.ghnOrderCode || "Đang cập nhật"} />
-          <SummaryRow label="Tổng thanh toán" value={formatMoney(order.total)} strong />
-        </div>
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-          {canViewOrder ? (
-            <Link
-              to={`/orders/${order.id}`}
-              className="inline-flex h-12 flex-1 items-center justify-center rounded-full bg-ink px-6 text-sm font-bold text-white"
-            >
-              Xem chi tiết đơn
-            </Link>
-          ) : null}
-          <Link
-            to="/products"
-            className="inline-flex h-12 flex-1 items-center justify-center rounded-full border border-border px-6 text-sm font-bold text-ink"
-          >
-            Tiếp tục mua sắm
-          </Link>
-        </div>
-      </section>
-    </div>
   );
 }
 
@@ -449,18 +387,3 @@ function FieldError({ children }) {
 function RequiredLabel({ children }) {
   return <span className="text-sm font-semibold">{children} <span className="text-danger" aria-hidden="true">*</span></span>;
 }
-
-function BankRow({ label, value, strong = false }) {
-  return (
-    <div className="flex items-start justify-between gap-5 border-b border-border pb-2 last:border-b-0">
-      <dt className="text-muted">{label}</dt>
-      <dd className={`text-right ${strong ? "text-base font-bold text-clay" : "font-semibold"}`}>{value}</dd>
-    </div>
-  );
-}
-
-
-
-
-
-

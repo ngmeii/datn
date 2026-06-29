@@ -9,10 +9,13 @@ import DashboardPage from "./pages/DashboardPage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import OrderDetailPage from "./pages/OrderDetailPage.jsx";
+import OrderSuccessPage from "./pages/OrderSuccessPage.jsx";
 import ProductDetailPage from "./pages/ProductDetailPage.jsx";
 import ProductPage from "./pages/ProductPage.jsx";
 import StaffConsignmentPage from "./pages/StaffConsignmentPage.jsx";
 import StaffConsignmentDetailPage from "./pages/StaffConsignmentDetailPage.jsx";
+import StaffCustomerDetailPage from "./pages/StaffCustomerDetailPage.jsx";
+import StaffCustomerPage from "./pages/StaffCustomerPage.jsx";
 import StaffOrderPage from "./pages/StaffOrderPage.jsx";
 import StaffOrderDetailPage from "./pages/StaffOrderDetailPage.jsx";
 import StaffPage from "./pages/StaffPage.jsx";
@@ -27,12 +30,15 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/admin" element={<RequireAuth><AdminPage /></RequireAuth>} />
+      <Route path="/admin/:section" element={<RequireAuth><AdminPage /></RequireAuth>} />
       <Route path="/staff" element={<RequireAuth><StaffPage /></RequireAuth>} />
       <Route path="/staff/consignments" element={<RequireAuth><StaffConsignmentPage /></RequireAuth>} />
       <Route path="/staff/consignments/:id" element={<RequireAuth><StaffConsignmentDetailPage /></RequireAuth>} />
       <Route path="/staff/consignment-requests/:id" element={<RequireAuth><StaffConsignmentDetailPage /></RequireAuth>} />
       <Route path="/staff/orders" element={<RequireAuth><StaffOrderPage /></RequireAuth>} />
       <Route path="/staff/orders/:id" element={<RequireAuth><StaffOrderDetailPage /></RequireAuth>} />
+      <Route path="/staff/customers" element={<RequireAuth><StaffCustomerPage /></RequireAuth>} />
+      <Route path="/staff/customers/:id" element={<RequireAuth><StaffCustomerDetailPage /></RequireAuth>} />
       <Route path="/staff/products" element={<RequireAuth><StaffProductPage /></RequireAuth>} />
       <Route path="/staff/products/:id" element={<RequireAuth><StaffProductDetailPage /></RequireAuth>} />
       <Route path="/staff/reports" element={<RequireAuth><StaffReportPage /></RequireAuth>} />
@@ -56,6 +62,7 @@ export default function App() {
         />
         <Route path="/cart" element={<CartPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
+        <Route path="/order-success/:id" element={<OrderSuccessPage />} />
         <Route path="/orders/:id" element={<RequireAuth><OrderDetailPage /></RequireAuth>} />
         <Route path="/account/consignments/:id" element={<RequireAuth><CustomerConsignmentDetailPage /></RequireAuth>} />
         <Route

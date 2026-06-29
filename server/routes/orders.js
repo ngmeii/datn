@@ -166,6 +166,9 @@ router.get("/:id", requireAuth, async (req, res, next) => {
     return res.json({
       ...order,
       status: orderToUiStatus[order.order_status] || order.order_status,
+      order_code: formatOrderCode(order.id),
+      transfer_content: buildTransferContent(order.id),
+      bank: getBankTransferInfo(order.total, buildTransferContent(order.id)),
       items,
     });
   } catch (error) {
@@ -199,13 +202,15 @@ router.post("/", optionalAuth, async (req, res, next) => {
     const quote = await buildOrderQuote(connection, data, { lockProducts: true });
     const productById = quote.productById;
     const orderStatus = data.paymentMethod === "cod" ? "waiting_confirm" : "waiting_payment";
+    const paymentStatus = data.paymentMethod === "cod" ? "unpaid" : "pending";
 
     const [orderResult] = await connection.execute(
       `INSERT INTO orders
-       (buyer_id, receiver_name, receiver_phone, receiver_email, shipping_province, shipping_district, shipping_ward, shipping_street, subtotal_amount, shipping_fee, discount_amount, total_amount, payment_method, payment_status, order_status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'unpaid', ?, NOW(), NOW())`,
+       (buyer_id, voucher_id, receiver_name, receiver_phone, receiver_email, shipping_province, shipping_district, shipping_ward, shipping_street, subtotal_amount, shipping_fee, discount_amount, total_amount, payment_method, payment_status, order_status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         req.user?.id || null,
+        quote.voucher?.id || null,
         data.receiverName,
         data.receiverPhone,
         data.receiverEmail,
@@ -218,9 +223,30 @@ router.post("/", optionalAuth, async (req, res, next) => {
         quote.discountAmount,
         quote.total,
         data.paymentMethod,
+        paymentStatus,
         orderStatus,
       ],
     );
+    const orderCode = formatOrderCode(orderResult.insertId);
+    const transferContent = buildTransferContent(orderResult.insertId);
+
+    await connection.execute(
+      `INSERT INTO payments (order_id, amount, payment_method, status, paid_at, created_at)
+       VALUES (?, ?, ?, 'pending', NULL, NOW())
+       ON DUPLICATE KEY UPDATE
+         amount = VALUES(amount),
+         payment_method = VALUES(payment_method),
+         status = IF(status = 'paid', status, VALUES(status)),
+         paid_at = IF(status = 'paid', paid_at, NULL)`,
+      [orderResult.insertId, Math.round(Number(quote.total || 0)), data.paymentMethod],
+    );
+
+    if (quote.voucher?.id) {
+      await connection.execute(
+        "UPDATE vouchers SET used_count = used_count + 1, updated_at = NOW() WHERE voucher_id = ?",
+        [quote.voucher.id],
+      );
+    }
 
     for (const item of data.items) {
       const product = productById.get(item.productId);
@@ -235,7 +261,6 @@ router.post("/", optionalAuth, async (req, res, next) => {
       );
     }
 
-    const orderCode = `DH${String(orderResult.insertId).padStart(6, "0")}`;
     const ghnOrder = await createGhnOrder({
       orderCode,
       receiverName: data.receiverName,
@@ -274,16 +299,41 @@ router.post("/", optionalAuth, async (req, res, next) => {
     });
 
     return res.status(201).json({
+      success: true,
       id: orderResult.insertId,
+      order_code: orderCode,
       status: orderToUiStatus[orderStatus],
+      order_status: orderToUiStatus[orderStatus],
+      raw_order_status: orderStatus,
+      paymentMethod: data.paymentMethod,
+      payment_method: data.paymentMethod,
+      payment_status: paymentStatus,
       subtotal: quote.subtotal,
       shippingFee: quote.shippingFee,
+      shipping_fee: quote.shippingFee,
       discountAmount: quote.discountAmount,
+      discount_amount: quote.discountAmount,
       total: quote.total,
+      total_amount: quote.total,
       voucher: quote.voucher,
+      transfer_content: transferContent,
+      bank: getBankTransferInfo(quote.total, transferContent),
       ghnOrderCode: ghnOrder.orderCode,
+      ghn_order_code: ghnOrder.orderCode,
       estimatedDelivery: ghnOrder.expectedDeliveryTime,
-      message: "Đã tạo đơn hàng.",
+      message: data.paymentMethod === "bank_transfer"
+        ? "Đơn hàng đã được tạo. Vui lòng chuyển khoản theo thông tin bên dưới."
+        : "Đặt hàng thành công. Đơn hàng của bạn đang chờ cửa hàng xác nhận.",
+      order: {
+        id: orderResult.insertId,
+        order_code: orderCode,
+        payment_method: data.paymentMethod,
+        payment_status: paymentStatus,
+        order_status: orderToUiStatus[orderStatus],
+        raw_order_status: orderStatus,
+        total_amount: quote.total,
+        transfer_content: transferContent,
+      },
     });
   } catch (error) {
     await connection.rollback();
@@ -304,7 +354,7 @@ router.patch("/:id/status", requireAuth, requireRole("staff", "admin"), async (r
     });
     const data = schema.parse(req.body);
     const orderStatus = uiToOrderStatus[data.status];
-    const paymentStatus = ["paid", "confirmed", "shipping", "completed"].includes(data.status) ? "paid" : undefined;
+    const paymentStatus = ["paid", "completed"].includes(data.status) ? "paid" : undefined;
 
     await query(
       `UPDATE orders
@@ -345,16 +395,27 @@ router.patch("/:id/status", requireAuth, requireRole("staff", "admin"), async (r
       await createPendingDisbursements(req.params.id);
     }
 
+    if (data.status === "paid") {
+      await query(
+        `UPDATE payments
+         SET status = 'paid',
+             paid_at = COALESCE(paid_at, NOW())
+         WHERE order_id = :id
+           AND status <> 'paid'`,
+        { id: req.params.id },
+      );
+    }
+
     await logActivity({
       ...actorFromRequest(req),
       entityType: "order",
       entityId: Number(req.params.id),
       action: "order_status_updated",
-      message: `Ðã c?p nh?t don hàng #DH${String(req.params.id).padStart(4, "0")} sang tr?ng thái ${getOrderStatusLabel(data.status)}.`,
+      message: `Đã cập nhật đơn hàng #DH${String(req.params.id).padStart(4, "0")} sang trạng thái ${getOrderStatusLabel(data.status)}.`,
       metadata: { status: data.status, trackingCode: data.trackingCode || "" },
     });
 
-    return res.json({ message: "Ðã c?p nh?t tr?ng thái don hàng." });
+    return res.json({ message: "Đã cập nhật trạng thái đơn hàng." });
   } catch (error) {
     return next(error);
   }
@@ -425,10 +486,10 @@ router.post("/:id/payout", requireAuth, requireRole("staff", "admin"), async (re
       entityType: "order",
       entityId: Number(req.params.id),
       action: "order_payout_created",
-      message: `Ðã gi?i ngân cho don hàng #DH${String(req.params.id).padStart(4, "0")}.`,
+      message: `Đã giải ngân cho đơn hàng #DH${String(req.params.id).padStart(4, "0")}.`,
     });
 
-    return res.status(201).json({ message: "Ðã gi?i ngân cho ngu?i bán." });
+    return res.status(201).json({ message: "Đã giải ngân cho người bán." });
   } catch (error) {
     await connection.rollback();
     return next(error);
@@ -448,7 +509,7 @@ async function buildOrderQuote(connection, data, options = {}) {
   );
 
   if (products.length !== productIds.length || products.some((product) => product.sell_status !== "on_sale")) {
-    throw httpError(409, "M?t s? s?n ph?m không còn s?n sàng d? d?t hàng.");
+    throw httpError(409, "Một số sản phẩm không còn sẵn sàng để đặt hàng.");
   }
 
   const productById = new Map(products.map((product) => [product.product_id, product]));
@@ -498,6 +559,7 @@ async function buildOrderQuote(connection, data, options = {}) {
     total,
     voucher: voucher
       ? {
+          id: voucher.voucher_id,
           code: voucher.code,
           discountType: voucher.discount_type,
           discountValue: Number(voucher.discount_value),
@@ -598,6 +660,29 @@ function estimateFallbackShippingFee(districtId, items = []) {
   return 22000 + distanceFee + weightFee;
 }
 
+function buildTransferContent(orderId) {
+  return `HEIRLOOM ${formatOrderCode(orderId)}`;
+}
+
+function formatOrderCode(orderId) {
+  return `DH${String(orderId).padStart(4, "0")}`;
+}
+
+function getBankTransferInfo(amount, transferContent) {
+  const bankCode = process.env.BANK_CODE || "MB";
+  const accountNumber = process.env.BANK_ACCOUNT || "0123456789";
+  const accountName = process.env.BANK_ACCOUNT_NAME || "THE HEIRLOOM";
+  return {
+    bank_code: bankCode,
+    bank_name: process.env.BANK_NAME || bankCode,
+    account_number: accountNumber,
+    account_name: accountName,
+    amount: Number(amount || 0),
+    transfer_content: transferContent,
+    qr_url: `https://img.vietqr.io/image/${encodeURIComponent(bankCode)}-${encodeURIComponent(accountNumber)}-compact2.png?amount=${Math.round(Number(amount || 0))}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent(accountName)}`,
+  };
+}
+
 function httpError(status, message) {
   const error = new Error(message);
   error.status = status;
@@ -606,15 +691,15 @@ function httpError(status, message) {
 
 function getOrderStatusLabel(status) {
   const labels = {
-    pending_payment: "ch? thanh toán",
-    pending_confirmation: "ch? xác nh?n",
-    paid: "dã thanh toán",
-    confirmed: "dang x? lý",
-    shipping: "dang giao hàng",
+    pending_payment: "chờ thanh toán",
+    pending_confirmation: "chờ xác nhận",
+    paid: "đã thanh toán",
+    confirmed: "đang xử lý",
+    shipping: "đang giao hàng",
     completed: "hoàn thành",
     cancelled: "đã hủy",
-    return_requested: "yêu c?u tr? hàng",
-    refunded: "dã hoàn ti?n",
+    return_requested: "yêu cầu trả hàng",
+    refunded: "đã hoàn tiền",
   };
   return labels[status] || status;
 }

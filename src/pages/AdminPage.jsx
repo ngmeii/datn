@@ -157,7 +157,7 @@ export default function AdminPage() {
   const [categoryPage, setCategoryPage] = useState(1);
   const [voucherPage, setVoucherPage] = useState(1);
 
-  const activeSection = useMemo(() => getSectionFromHash(location.hash), [location.hash]);
+  const activeSection = useMemo(() => getSectionFromLocation(location), [location.pathname, location.hash]);
   const meta = sectionMeta[activeSection] || sectionMeta.overview;
 
   async function loadOverview() {
@@ -1114,9 +1114,13 @@ function VouchersView({
   page,
   totalPages,
   onPageChange,
+  onView,
   onEdit,
   onToggleStatus,
+  onDelete,
 }) {
+  const [actionMenuId, setActionMenuId] = useState(null);
+
   return (
     <>
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -2544,4 +2548,12 @@ function getSectionFromHash(hash) {
     return normalized;
   }
   return "accounts";
+}
+
+function getSectionFromLocation(location) {
+  const [, root, section] = String(location?.pathname || "").split("/");
+  if (root === "admin" && ["accounts", "categories", "vouchers", "reports", "settings"].includes(section)) {
+    return section;
+  }
+  return getSectionFromHash(location?.hash);
 }
